@@ -12,8 +12,8 @@
     "coursedesc": "ADAPTIVE SOFTWARE ENGINEERING",
     "ltps": "P",
     "section": "24CI3201",
-    "total_conducted": 28,
-    "total_attended": 19
+    "total_conducted": 31,
+    "total_attended": 22
   },
   {
     "coursecode": "24CS3207",
@@ -52,16 +52,16 @@
     "coursedesc": "INFORMATION ASSURANCE AND SECURITY",
     "ltps": "L",
     "section": "24CS3105",
-    "total_conducted": 57,
-    "total_attended": 50
+    "total_conducted": 58,
+    "total_attended": 51
   },
   {
     "coursecode": "24CS3105",
     "coursedesc": "INFORMATION ASSURANCE AND SECURITY",
     "ltps": "T",
     "section": "24CS3105",
-    "total_conducted": 36,
-    "total_attended": 33
+    "total_conducted": 37,
+    "total_attended": 34
   },
   {
     "coursecode": "24DEA3101",

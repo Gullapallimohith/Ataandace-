@@ -8,6 +8,8 @@ async function deliverPresentReport() {
     getCachedHistory,
     isSupabaseConfigured,
   } = await import("@/lib/erp.server");
+  const { istNow } = await import("@/lib/timetable");
+  const timeStr = istNow().timeString;
 
   let snapshots = getCachedSnapshots();
   let history = getCachedHistory();
@@ -64,13 +66,15 @@ async function deliverPresentReport() {
       const cConducted = matchCourse ? matchCourse.total_conducted : p.total_conducted ?? 0;
       const cPct = cConducted > 0 ? ((cAttended / cConducted) * 100).toFixed(1) : "";
 
+      const noteMatch = p.note?.match(/Conducted:\s*(\d+),\s*Attended:\s*(\d+)/i);
+      const cAttended = noteMatch ? noteMatch[2] : (matchCourse ? matchCourse.total_attended : (p.total_attended ?? 0));
+      const cConducted = noteMatch ? noteMatch[1] : (matchCourse ? matchCourse.total_conducted : (p.total_conducted ?? 0));
+
       const msg =
-        `✅ <b>MARKED PRESENT</b>\n` +
-        `📚 <b>${p.coursedesc || p.coursecode}</b>\n` +
-        `📌 Code: <code>${p.coursecode}</code> · Section: ${p.section || "S-1"}\n` +
-        (cPct ? `📊 Course Attendance: <b>${cAttended}/${cConducted} (${cPct}%)</b>\n` : "") +
-        `⏰ Details: ${p.note || "Recorded"}\n` +
-        `🗓️ Date: ${p.date}`;
+        `✅ ${p.coursecode} · ${p.section || matchCourse?.section || p.coursecode}\n` +
+        `Marked PRESENT\n` +
+        `Attendance: ${cAttended}/${cConducted}\n\n` +
+        `${timeStr}`;
 
       await sendTelegram(msg);
       await new Promise((r) => setTimeout(r, 300));

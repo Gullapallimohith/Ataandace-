@@ -5,6 +5,8 @@
 // 4. Automatically detects expired ERP sessions, downloads fresh CAPTCHA, and sends to Telegram
 // 5. Automatically logs in when user replies with CAPTCHA in Telegram
 // 6. Sends Sunday 9:00 AM IST Weekly Subject Averages automatically
+// 7. Robust timeouts (AbortController) to prevent any hung fetches or frozen schedulers
+// 8. Session Keep-Alive ping every 2 minutes so sessions never expire
 
 import fs from "node:fs";
 import path from "node:path";
@@ -60,6 +62,24 @@ function resolveFile(filename) {
 const SESSION_FILE = resolveFile(".erp-session.json");
 const SNAPSHOTS_FILE = resolveFile(".erp-attendance.json");
 const HISTORY_FILE = resolveFile(".erp-history.json");
+
+/* ---------------- Timeout-Safe Fetch ---------------- */
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } catch (err) {
+    if (err.name === "AbortError" || String(err).includes("aborted")) {
+      throw new Error(`Request timed out after ${timeoutMs}ms: ${url.slice(0, 60)}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(id);
+  }
+}
 
 /* ---------------- Session & File Helpers ---------------- */
 
@@ -133,11 +153,11 @@ function getIstTime() {
 
 async function telegramSend(text, parseMode = "HTML") {
   try {
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    const res = await fetchWithTimeout(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: CHAT_ID, text, parse_mode: parseMode }),
-    });
+    }, 15000);
     if (!res.ok) {
       const errText = await res.text();
       if (parseMode === "HTML") {
@@ -161,10 +181,10 @@ async function telegramSendPhoto(photoBuffer, caption) {
     form.append("caption", caption);
     form.append("parse_mode", "HTML");
     form.append("photo", new Blob([photoBuffer], { type: "image/png" }), "captcha.png");
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+    const res = await fetchWithTimeout(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
       method: "POST",
       body: form,
-    });
+    }, 20000);
     const json = await res.json();
     return json;
   } catch (err) {
@@ -175,7 +195,7 @@ async function telegramSendPhoto(photoBuffer, caption) {
 
 async function deleteTelegramWebhook() {
   try {
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/deleteWebhook?drop_pending_updates=false`);
+    const res = await fetchWithTimeout(`https://api.telegram.org/bot${BOT_TOKEN}/deleteWebhook?drop_pending_updates=false`, {}, 10000);
     const json = await res.json();
     if (json.ok) {
       console.log("[Telegram] Webhook cleared; getUpdates polling unlocked.");
@@ -219,7 +239,7 @@ async function erpFetch(url, init = {}) {
       ...(init.headers ?? {}),
     };
     if (cookies) headers["cookie"] = cookies;
-    const response = await fetch(current, { method, headers, body, redirect: "manual" });
+    const response = await fetchWithTimeout(current, { method, headers, body, redirect: "manual" }, 30000);
     cookies = mergeCookies(cookies, response);
 
     const location = response.headers.get("location");
@@ -498,24 +518,25 @@ async function checkAttendance(isInitialAfterLogin = false) {
       return;
     }
 
-    // Step 1: GET form to obtain CSRF and current merged cookies
-    const formRes = await fetch(ERP_ATTENDANCE_URL, {
-      headers: {
-        cookie: session.cookies,
-        "user-agent": BROWSER_UA,
-        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-    });
-
-    if (formRes.status >= 300) {
-      console.warn("[ERP] Attendance form returned HTTP", formRes.status);
+    // Step 1: GET form to obtain CSRF and current merged cookies (with timeout)
+    let formRes;
+    try {
+      formRes = await fetchWithTimeout(ERP_ATTENDANCE_URL, {
+        headers: {
+          cookie: session.cookies,
+          "user-agent": BROWSER_UA,
+          accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      }, 30000);
+    } catch (formErr) {
+      console.warn("[ERP] Form request timed out or network error:", formErr.message);
       return;
     }
 
     const currentCookies = mergeCookies(session.cookies, formRes);
     const formHtml = await formRes.text();
 
-    if (/LoginForm\[/i.test(formHtml)) {
+    if (formRes.status === 302 || /LoginForm\[/i.test(formHtml)) {
       console.warn("[ERP] Session expired on attendance page. Refreshing login...");
       writeSession({ status: "expired" });
       await startErpLogin();
@@ -528,32 +549,51 @@ async function checkAttendance(isInitialAfterLogin = false) {
 
     console.log(`[ERP] [${timeStr} IST] Querying Attendance: AcademicYear="${academicYearId}", Semester="${semesterId}"`);
 
-    // Step 2: POST to courselist targeting 2026 - 2027 Odd Sem with merged cookies
+    // Step 2: POST to courselist targeting 2026 - 2027 Odd Sem with merged cookies (55s timeout)
     const postBody = new URLSearchParams({
       _csrf: csrf,
       "DynamicModel[academicyear]": academicYearId,
       "DynamicModel[semesterid]": semesterId,
     });
 
-    const searchRes = await fetch(
-      `${ERP_BASE}/index.php?r=studentattendance/studentdailyattendance/courselist`,
-      {
-        method: "POST",
-        headers: {
-          cookie: currentCookies,
-          "user-agent": BROWSER_UA,
-          "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "x-csrf-token": csrf,
-          "x-requested-with": "XMLHttpRequest",
-          referer: ERP_ATTENDANCE_URL,
-          accept: "text/html, */*; q=0.01",
+    let searchRes;
+    try {
+      searchRes = await fetchWithTimeout(
+        `${ERP_BASE}/index.php?r=studentattendance/studentdailyattendance/courselist`,
+        {
+          method: "POST",
+          headers: {
+            cookie: currentCookies,
+            "user-agent": BROWSER_UA,
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "x-csrf-token": csrf,
+            "x-requested-with": "XMLHttpRequest",
+            referer: ERP_ATTENDANCE_URL,
+            accept: "text/html, */*; q=0.01",
+          },
+          body: postBody.toString(),
         },
-        body: postBody.toString(),
-      }
-    );
+        55000
+      );
+    } catch (queryErr) {
+      console.warn(`[ERP] [${timeStr} IST] Courselist query timed out (server busy). Retrying next cycle.`);
+      return;
+    }
 
     if (searchRes.status === 504 || searchRes.status >= 500) {
-      console.warn(`[ERP] [${timeStr} IST] Attendance query returned HTTP ${searchRes.status} (server busy). Will retry next interval.`);
+      console.warn(`[ERP] [${timeStr} IST] Attendance query returned HTTP ${searchRes.status} (server busy). Retrying next cycle.`);
+      return;
+    }
+
+    const isRedirect =
+      searchRes.status === 302 ||
+      (searchRes.headers.get("x-redirect") || "").includes("login") ||
+      (searchRes.headers.get("location") || "").includes("login");
+
+    if (isRedirect) {
+      console.warn("[ERP] Session expired (redirected to login). Refreshing login...");
+      writeSession({ status: "expired" });
+      await startErpLogin();
       return;
     }
 
@@ -604,6 +644,7 @@ async function checkAttendance(isInitialAfterLogin = false) {
             coursecode: row.coursecode,
             coursedesc: row.coursedesc,
             section: row.section,
+            ltps: row.ltps,
             status: "present",
             date: today,
             note: `Conducted: ${row.total_conducted}, Attended: ${row.total_attended}`,
@@ -619,6 +660,8 @@ async function checkAttendance(isInitialAfterLogin = false) {
 
           console.log(`[ATTENDANCE ALERT] [${timeStr} IST] Present marked: ${row.coursecode} (${row.total_attended}/${row.total_conducted})`);
           await telegramSend(presentMsg);
+          // Rate-limit delay between Telegram notifications
+          await new Promise((r) => setTimeout(r, 500));
         } else if (row.total_conducted > prev.total_conducted) {
           // Class conducted but student absent
           const entry = {
@@ -626,6 +669,7 @@ async function checkAttendance(isInitialAfterLogin = false) {
             coursecode: row.coursecode,
             coursedesc: row.coursedesc,
             section: row.section,
+            ltps: row.ltps,
             status: "absent",
             date: today,
             note: `Conducted: ${row.total_conducted}, Attended: ${row.total_attended}`,
@@ -641,6 +685,7 @@ async function checkAttendance(isInitialAfterLogin = false) {
 
           console.log(`[ATTENDANCE ALERT] [${timeStr} IST] Absent marked: ${row.coursecode} (${row.total_attended}/${row.total_conducted})`);
           await telegramSend(absentMsg);
+          await new Promise((r) => setTimeout(r, 500));
         }
       }
     }
@@ -657,10 +702,9 @@ async function checkAttendance(isInitialAfterLogin = false) {
       const attended = rows.reduce((s, r) => s + r.total_attended, 0);
       const overallPct = conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0";
       await telegramSend(
-        `✅ <b>Logged in to KL ERP (2026 - 2027 Odd Sem)</b>\n` +
-        `📊 Overall Attendance: <b>${overallPct}%</b> (${attended}/${conducted} classes)\n` +
-        `📚 Tracked Courses: <b>${rows.length} components</b> (L/T/P/S)\n` +
-        `⚡ <b>Real-time Present Monitoring Active</b> (checks every 60s during class hours)`
+        `📊 <b>Attendance Register Loaded:</b>\n` +
+        `• Overall Attendance: <b>${overallPct}%</b> (${attended}/${conducted} classes)\n` +
+        `• Tracked Courses: <b>${rows.length} components</b> (L/T/P/S)`
       );
     } else {
       console.log(`[ERP] [${timeStr} IST] Check complete. ${rows.length} components checked. Any changes: ${hasPresentChanges || newHistoryEntries.length > 0}`);
@@ -774,7 +818,7 @@ async function pollTelegramUpdates() {
 
   try {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=15`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url, {}, 25000);
     if (!res.ok) {
       await new Promise((r) => setTimeout(r, 2000));
       isPollingUpdates = false;
@@ -798,11 +842,16 @@ async function pollTelegramUpdates() {
           const recentPresent = history.filter((h) => h.status === "present")[0];
 
           if (recentPresent) {
-            const matched = snapshots.find((s) => s.coursecode === recentPresent.coursecode);
+            const matched = snapshots.find(
+              (s) => s.coursecode === recentPresent.coursecode && (recentPresent.ltps ? s.ltps === recentPresent.ltps : true)
+            ) || snapshots.find((s) => s.coursecode === recentPresent.coursecode);
+            const noteMatch = recentPresent.note?.match(/Conducted:\s*(\d+),\s*Attended:\s*(\d+)/i);
+            const attended = noteMatch ? noteMatch[2] : (matched?.total_attended ?? 46);
+            const conducted = noteMatch ? noteMatch[1] : (matched?.total_conducted ?? 53);
             const presentCard =
               `✅ ${recentPresent.coursecode} · ${recentPresent.section || matched?.section || recentPresent.coursecode}\n` +
               `Marked PRESENT\n` +
-              `Attendance: ${matched?.total_attended ?? 46}/${matched?.total_conducted ?? 53}\n\n` +
+              `Attendance: ${attended}/${conducted}\n\n` +
               `${timeStr}`;
             await telegramSend(presentCard);
           } else if (snapshots.length > 0) {
@@ -871,11 +920,12 @@ async function pollTelegramUpdates() {
   setImmediate(pollTelegramUpdates);
 }
 
-/* ---------------- Dynamic Poll Scheduler ---------------- */
+/* ---------------- Dynamic Poll Scheduler with Guaranteed Continuation ---------------- */
 
 async function scheduleAttendanceRunner() {
   const { hours, isSunday } = getIstTime();
-  // College hours: Mon-Sat 8:00 AM to 5:30 PM IST
+  // College hours: Mon-Sat 8:00 AM to 5:30 PM IST (checks every 60s)
+  // Outside college hours: checks every 3 minutes
   const isCollegeHours = !isSunday && hours >= 8 && hours < 18;
   const intervalMs = isCollegeHours ? 60 * 1000 : 3 * 60 * 1000;
 
@@ -883,9 +933,26 @@ async function scheduleAttendanceRunner() {
     await checkAttendance(false);
   } catch (err) {
     console.error("[Scheduler] Polling tick error:", err.message);
+  } finally {
+    // ALWAYS reschedule next run in finally block - immune to hung fetches
+    setTimeout(scheduleAttendanceRunner, intervalMs);
   }
+}
 
-  setTimeout(scheduleAttendanceRunner, intervalMs);
+/* ---------------- Session Keep-Alive Ping (every 2 minutes) ---------------- */
+
+async function keepSessionAlive() {
+  try {
+    const session = readSession();
+    if (session.status === "active" && session.cookies) {
+      await fetchWithTimeout(`${ERP_BASE}/index.php`, {
+        headers: {
+          cookie: session.cookies,
+          "user-agent": BROWSER_UA,
+        },
+      }, 10000).catch(() => {});
+    }
+  } catch {}
 }
 
 /* ---------------- Daemon Initialization ---------------- */
@@ -920,7 +987,10 @@ async function startDaemon() {
   // 4. Start attendance polling loop
   setTimeout(scheduleAttendanceRunner, 3000);
 
-  // 5. Start Sunday morning weekly report scheduler (checks every 30s)
+  // 5. Keep-alive ping every 2 minutes so session NEVER expires
+  setInterval(keepSessionAlive, 2 * 60 * 1000);
+
+  // 6. Start Sunday morning weekly report scheduler (checks every 30s)
   setInterval(checkSundayWeeklySchedule, 30 * 1000);
 }
 
