@@ -1,0 +1,1 @@
+UPDATE public.app_settings SET sync_enabled = true, updated_at = now() WHERE id = 1;
