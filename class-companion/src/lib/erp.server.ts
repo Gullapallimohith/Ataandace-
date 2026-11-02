@@ -408,26 +408,64 @@ export function formatPresentNotification(
  * Overall: 89.7% (454/506) · Target 85%
  */
 export function formatWeeklyReport(rows: AttendanceRow[]): string {
-  const bySubject = new Map<string, { name: string; attended: number; conducted: number }>();
-
-  for (const r of rows) {
-    const name = (r.coursedesc || r.coursecode).trim();
-    const entry = bySubject.get(name) ?? { name, attended: 0, conducted: 0 };
-    entry.attended += r.total_attended || 0;
-    entry.conducted += r.total_conducted || 0;
-    bySubject.set(name, entry);
+  const WEIGHTS: Record<string, number> = { L: 1, P: 0.5, T: 0.25, S: 0.25 };
+  const byCourse = new Map<string, AttendanceRow[]>();
+  for (const row of rows) {
+    const list = byCourse.get(row.coursecode) ?? [];
+    list.push(row);
+    byCourse.set(row.coursecode, list);
   }
+
+  const courses: {
+    coursecode: string;
+    name: string;
+    weighted: number;
+    attended: number;
+    conducted: number;
+  }[] = [];
+
+  for (const [coursecode, list] of byCourse) {
+    const components: { code: string; percent: number; conducted: number; attended: number }[] = [];
+    for (const row of list) {
+      const code = (row.ltps ?? "").trim().toUpperCase().slice(0, 1);
+      if (!WEIGHTS[code] || !row.total_conducted) continue;
+      components.push({
+        code,
+        percent: (row.total_attended / row.total_conducted) * 100,
+        conducted: row.total_conducted,
+        attended: row.total_attended,
+      });
+    }
+
+    const weightSum = components.reduce((s, c) => s + (WEIGHTS[c.code] ?? 0), 0);
+    const weighted = weightSum
+      ? components.reduce((s, c) => s + c.percent * (WEIGHTS[c.code] ?? 0), 0) / weightSum
+      : (list.reduce((s, r) => s + (r.total_conducted ? (r.total_attended / r.total_conducted) * 100 : 0), 0));
+
+    const attended = list.reduce((s, r) => s + (r.total_attended || 0), 0);
+    const conducted = list.reduce((s, r) => s + (r.total_conducted || 0), 0);
+    const name = (list.find((r) => r.coursedesc)?.coursedesc || coursecode).trim();
+
+    courses.push({
+      coursecode,
+      name,
+      weighted,
+      attended,
+      conducted,
+    });
+  }
+
+  courses.sort((a, b) => a.coursecode.localeCompare(b.coursecode));
 
   const lines: string[] = ["📊 Weekly Subject Averages\n"];
   let overallAttended = 0;
   let overallConducted = 0;
 
-  for (const [_, item] of bySubject) {
-    overallAttended += item.attended;
-    overallConducted += item.conducted;
-    const pct = item.conducted > 0 ? (item.attended / item.conducted) * 100 : 0;
-    const icon = pct >= 85 ? "🟢" : "🔴";
-    lines.push(`${icon} ${item.name.toUpperCase()}\n${pct.toFixed(1)}% · ${item.attended}/${item.conducted}\n`);
+  for (const c of courses) {
+    overallAttended += c.attended;
+    overallConducted += c.conducted;
+    const icon = c.weighted >= 85 ? "🟢" : "🔴";
+    lines.push(`${icon} ${c.name.toUpperCase()}\n${c.weighted.toFixed(1)}% · ${c.attended}/${c.conducted}\n`);
   }
 
   const overallPct = overallConducted > 0 ? (overallAttended / overallConducted) * 100 : 0;
@@ -437,7 +475,14 @@ export function formatWeeklyReport(rows: AttendanceRow[]): string {
 }
 
 export async function sendWeeklyAttendanceReport(): Promise<{ ok: boolean; messageId?: number; error?: string; text?: string }> {
-  const snapshots = getCachedSnapshots();
+  let snapshots = getCachedSnapshots();
+  if (isSupabaseConfigured()) {
+    try {
+      const db = admin();
+      const { data: snapData } = await db.from("attendance_snapshot").select("*").order("coursecode");
+      if (snapData && snapData.length > 0) snapshots = snapData;
+    } catch {}
+  }
   const text = formatWeeklyReport(snapshots);
   const result = await sendTelegram(text);
   return { ...result, text };
