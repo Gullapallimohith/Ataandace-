@@ -243,6 +243,37 @@ function extractCsrfToken(html) {
   return reversed?.[1] ? reversed[1].trim() : null;
 }
 
+function extractAcademicYearId(formHtml, preferred = "2026 - 2027") {
+  const selectMatch = formHtml.match(/name=["']DynamicModel\[academicyear\]["'][\s\S]*?<\/select>/i);
+  const selectContent = selectMatch ? selectMatch[0] : formHtml;
+  const optionRegex = /<option\s+value="([^"]*)"[^>]*>([\s\S]*?)<\/option>/gi;
+  let match;
+  const options = [];
+  while ((match = optionRegex.exec(selectContent)) !== null) {
+    const val = (match[1] ?? "").trim();
+    const lbl = (match[2] ?? "").replace(/<[^>]*>/g, "").trim();
+    if (val) options.push({ value: val, label: lbl });
+  }
+  const default2026 = options.find((o) => o.label.includes("2026") && o.label.includes("2027"));
+  if (default2026) return default2026.value;
+  return options[0]?.value ?? "29";
+}
+
+function extractSemesterId(formHtml, preferred = "odd") {
+  const selectMatch = formHtml.match(/name=["']DynamicModel\[semesterid\]["'][\s\S]*?<\/select>/i);
+  if (!selectMatch) return "1";
+  const optionRegex = /<option\s+value="([^"]*)"[^>]*>([\s\S]*?)<\/option>/gi;
+  let match;
+  const options = [];
+  while ((match = optionRegex.exec(selectMatch[0])) !== null) {
+    const val = (match[1] ?? "").trim();
+    const lbl = (match[2] ?? "").replace(/<[^>]*>/g, "").trim();
+    if (val) options.push({ value: val, label: lbl });
+  }
+  const matched = options.find((o) => /odd|sem\s*1|^1$/i.test(o.label) || o.value === "1");
+  return matched ? matched.value : "1";
+}
+
 function decodeHtml(value) {
   return value
     .replace(/&amp;/g, "&")
@@ -285,7 +316,18 @@ function parseAttendanceTable(html) {
       break;
     }
   }
-  if (!map) return rows;
+
+  // Fallback to standard KL ERP column indices if header row wasn't th/td detected
+  if (!map) {
+    map = {
+      coursecode: 1,
+      coursedesc: 2,
+      ltps: 3,
+      section: 4,
+      totalconducted: 8,
+      totalattended: 9,
+    };
+  }
   const columns = map;
 
   const pick = (cells, key) => {
@@ -447,10 +489,24 @@ async function checkAttendance(isInitialAfterLogin = false) {
       return;
     }
 
-    // Step 1: GET form to obtain CSRF and confirm session
-    const formRes = await erpFetch(ERP_ATTENDANCE_URL, { cookies: session.cookies });
-    const formHtml = await formRes.response.text();
-    if (formRes.response.status >= 300 || /LoginForm\[/i.test(formHtml)) {
+    // Step 1: GET form to obtain CSRF and current merged cookies
+    const formRes = await fetch(ERP_ATTENDANCE_URL, {
+      headers: {
+        cookie: session.cookies,
+        "user-agent": BROWSER_UA,
+        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
+
+    if (formRes.status >= 300) {
+      console.warn("[ERP] Attendance form returned HTTP", formRes.status);
+      return;
+    }
+
+    const currentCookies = mergeCookies(session.cookies, formRes);
+    const formHtml = await formRes.text();
+
+    if (/LoginForm\[/i.test(formHtml)) {
       console.warn("[ERP] Session expired on attendance page. Refreshing login...");
       writeSession({ status: "expired" });
       await startErpLogin();
@@ -458,30 +514,41 @@ async function checkAttendance(isInitialAfterLogin = false) {
     }
 
     const csrf = extractCsrfToken(formHtml) ?? "";
+    const academicYearId = extractAcademicYearId(formHtml, "2026 - 2027");
+    const semesterId = extractSemesterId(formHtml, "odd");
 
-    // Step 2: POST to courselist targeting 2026 - 2027 Odd Sem
+    console.log(`[ERP] [${timeStr} IST] Querying Attendance: AcademicYear="${academicYearId}", Semester="${semesterId}"`);
+
+    // Step 2: POST to courselist targeting 2026 - 2027 Odd Sem with merged cookies
     const postBody = new URLSearchParams({
       _csrf: csrf,
-      "DynamicModel[academicyear]": "2026 - 2027",
-      "DynamicModel[semesterid]": "odd",
+      "DynamicModel[academicyear]": academicYearId,
+      "DynamicModel[semesterid]": semesterId,
     });
 
-    const searchRes = await erpFetch(
-      `${ERP_BASE}/index.php?r=studentattendance%2Fstudentdailyattendance%2Fcourselist`,
+    const searchRes = await fetch(
+      `${ERP_BASE}/index.php?r=studentattendance/studentdailyattendance/courselist`,
       {
         method: "POST",
-        cookies: formRes.cookies,
         headers: {
-          "content-type": "application/x-www-form-urlencoded",
+          cookie: currentCookies,
+          "user-agent": BROWSER_UA,
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
           "x-csrf-token": csrf,
           "x-requested-with": "XMLHttpRequest",
           referer: ERP_ATTENDANCE_URL,
+          accept: "text/html, */*; q=0.01",
         },
         body: postBody.toString(),
       }
     );
 
-    const searchHtml = await searchRes.response.text();
+    if (searchRes.status === 504 || searchRes.status >= 500) {
+      console.warn(`[ERP] [${timeStr} IST] Attendance query returned HTTP ${searchRes.status} (server busy). Will retry next interval.`);
+      return;
+    }
+
+    const searchHtml = await searchRes.text();
     if (/LoginForm\[/i.test(searchHtml)) {
       console.warn("[ERP] Session expired during courselist fetch. Refreshing login...");
       writeSession({ status: "expired" });
@@ -489,9 +556,10 @@ async function checkAttendance(isInitialAfterLogin = false) {
       return;
     }
 
-    // Update active cookies if new ones returned
-    if (searchRes.cookies && searchRes.cookies !== session.cookies) {
-      writeSession({ cookies: searchRes.cookies });
+    // Update active cookies
+    const finalCookies = mergeCookies(currentCookies, searchRes);
+    if (finalCookies && finalCookies !== session.cookies) {
+      writeSession({ cookies: finalCookies });
     }
 
     const rows = parseAttendanceTable(searchHtml);
@@ -514,7 +582,12 @@ async function checkAttendance(isInitialAfterLogin = false) {
         if (row.total_attended > prev.total_attended) {
           // ==========================================
           // MARKED PRESENT DETECTED!
-          // Dispatches exact required reference format
+          // Dispatches exact required reference format:
+          // ✅ 24CI3201 · 24CI3201
+          // Marked PRESENT
+          // Attendance: 46/53
+          //
+          // 14:42
           // ==========================================
           hasPresentChanges = true;
           const entry = {

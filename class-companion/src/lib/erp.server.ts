@@ -713,7 +713,18 @@ export function parseAttendanceTable(html: string): AttendanceRow[] {
       break;
     }
   }
-  if (!map) return rows;
+  if (!map) {
+    // Standard KL University ERP column indexes fallback:
+    // 0: #, 1: Coursecode, 2: Coursedesc, 3: Ltps, 4: Section, 5: Year, 6: Sem, 7: FrDate, 8: Total Conducted, 9: Total Attended
+    map = {
+      coursecode: 1,
+      coursedesc: 2,
+      ltps: 3,
+      section: 4,
+      totalconducted: 8,
+      totalattended: 9,
+    };
+  }
   const columns = map;
 
   const pick = (cells: string[], key: string) => {
