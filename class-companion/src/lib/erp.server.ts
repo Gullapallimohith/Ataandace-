@@ -100,28 +100,28 @@ let localMemorySession: ErpSession = readStoredSession() ?? {
 };
 
 export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
-  { coursecode: "24CS3207", coursedesc: "Design and Analysis of Algorithms", ltps: "L", section: "S-4", total_conducted: 32, total_attended: 29, updated_at: new Date().toISOString() },
-  { coursecode: "24CS3207", coursedesc: "Design and Analysis of Algorithms", ltps: "P", section: "S-4", total_conducted: 16, total_attended: 15, updated_at: new Date().toISOString() },
-  { coursecode: "24CS3105", coursedesc: "Database Management Systems", ltps: "L", section: "S-4", total_conducted: 30, total_attended: 27, updated_at: new Date().toISOString() },
-  { coursecode: "24CS3105", coursedesc: "Database Management Systems", ltps: "T", section: "S-4", total_conducted: 12, total_attended: 11, updated_at: new Date().toISOString() },
-  { coursecode: "24DEA3101", coursedesc: "Deep Learning & Neural Networks", ltps: "L", section: "S-4", total_conducted: 28, total_attended: 25, updated_at: new Date().toISOString() },
-  { coursecode: "24DEA3101", coursedesc: "Deep Learning & Neural Networks", ltps: "P", section: "S-4", total_conducted: 18, total_attended: 16, updated_at: new Date().toISOString() },
-  { coursecode: "24CI3201", coursedesc: "Computer Networks", ltps: "L", section: "S-14", total_conducted: 30, total_attended: 27, updated_at: new Date().toISOString() },
-  { coursecode: "24CI3201", coursedesc: "Computer Networks", ltps: "P", section: "S-14", total_conducted: 16, total_attended: 15, updated_at: new Date().toISOString() },
-  { coursecode: "24SDCS03", coursedesc: "Full Stack Web Development", ltps: "L", section: "S-6", total_conducted: 22, total_attended: 20, updated_at: new Date().toISOString() },
-  { coursecode: "24SDCS03", coursedesc: "Full Stack Web Development", ltps: "S", section: "S-6", total_conducted: 14, total_attended: 13, updated_at: new Date().toISOString() },
-  { coursecode: "24CC3014", coursedesc: "Cloud Computing Architectures", ltps: "S", section: "S-4", total_conducted: 24, total_attended: 22, updated_at: new Date().toISOString() },
-  { coursecode: "24CS2235F", coursedesc: "Object Oriented Programming with Java", ltps: "L", section: "S-6", total_conducted: 28, total_attended: 25, updated_at: new Date().toISOString() },
-  { coursecode: "24CS2235F", coursedesc: "Object Oriented Programming with Java", ltps: "P", section: "S-6", total_conducted: 14, total_attended: 13, updated_at: new Date().toISOString() },
+  { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "L", section: "24CI3201", total_conducted: 53, total_attended: 46, updated_at: new Date().toISOString() },
+  { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "P", section: "24CI3201", total_conducted: 28, total_attended: 19, updated_at: new Date().toISOString() },
+  { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "L", section: "24CS3207", total_conducted: 55, total_attended: 43, updated_at: new Date().toISOString() },
+  { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "P", section: "24CS3207", total_conducted: 24, total_attended: 18, updated_at: new Date().toISOString() },
+  { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "L", section: "24CS2235F", total_conducted: 44, total_attended: 36, updated_at: new Date().toISOString() },
+  { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "P", section: "24CS2235F", total_conducted: 26, total_attended: 26, updated_at: new Date().toISOString() },
+  { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "L", section: "24CS3105", total_conducted: 57, total_attended: 50, updated_at: new Date().toISOString() },
+  { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "T", section: "24CS3105", total_conducted: 36, total_attended: 33, updated_at: new Date().toISOString() },
+  { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "L", section: "24DEA3101", total_conducted: 43, total_attended: 34, updated_at: new Date().toISOString() },
+  { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "P", section: "24DEA3101", total_conducted: 38, total_attended: 35, updated_at: new Date().toISOString() },
+  { coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", ltps: "L", section: "24SDCS03", total_conducted: 32, total_attended: 27, updated_at: new Date().toISOString() },
+  { coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", ltps: "S", section: "24SDCS03", total_conducted: 56, total_attended: 41, updated_at: new Date().toISOString() },
+  { coursecode: "24CC3014", coursedesc: "AWS CERTIFIED SOLUTIONS ARCHITECT - ASSOCIATE (SAA-C03)", ltps: "S", section: "24CC3014", total_conducted: 36, total_attended: 34, updated_at: new Date().toISOString() },
 ];
 
 export const DEFAULT_HISTORY = [
-  { id: "h1", coursecode: "24CS3207", coursedesc: "Design and Analysis of Algorithms", section: "S-4", status: "present", date: new Date().toISOString().slice(0, 10), note: "Period 1 · Lecture", created_at: new Date(Date.now() - 4 * 3600000).toISOString() },
-  { id: "h2", coursecode: "24CS3207", coursedesc: "Design and Analysis of Algorithms", section: "S-4", status: "present", date: new Date().toISOString().slice(0, 10), note: "Period 2 · Lecture", created_at: new Date(Date.now() - 3 * 3600000).toISOString() },
-  { id: "h3", coursecode: "24CS3105", coursedesc: "Database Management Systems", section: "S-4", status: "present", date: new Date().toISOString().slice(0, 10), note: "Period 3 · Lecture", created_at: new Date(Date.now() - 2 * 3600000).toISOString() },
-  { id: "h4", coursecode: "24CS3105", coursedesc: "Database Management Systems", section: "S-4", status: "present", date: new Date().toISOString().slice(0, 10), note: "Period 4 · Tutorial", created_at: new Date(Date.now() - 1 * 3600000).toISOString() },
-  { id: "h5", coursecode: "24DEA3101", coursedesc: "Deep Learning & Neural Networks", section: "S-4", status: "absent", date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), note: "Period 5 · Lecture", created_at: new Date(Date.now() - 26 * 3600000).toISOString() },
-  { id: "h6", coursecode: "24CI3201", coursedesc: "Computer Networks", section: "S-14", status: "present", date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), note: "Period 7 · Practical", created_at: new Date(Date.now() - 24 * 3600000).toISOString() },
+  { id: "h1", coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", section: "24CS3207", status: "present", date: new Date().toISOString().slice(0, 10), note: "Period 1 · Lecture", created_at: new Date(Date.now() - 4 * 3600000).toISOString() },
+  { id: "h2", coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", section: "24CS3105", status: "present", date: new Date().toISOString().slice(0, 10), note: "Period 2 · Lecture", created_at: new Date(Date.now() - 3 * 3600000).toISOString() },
+  { id: "h3", coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", section: "24CI3201", status: "present", date: new Date().toISOString().slice(0, 10), note: "Period 3 · Lecture", created_at: new Date(Date.now() - 2 * 3600000).toISOString() },
+  { id: "h4", coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", section: "24CS2235F", status: "present", date: new Date().toISOString().slice(0, 10), note: "Period 4 · Practical", created_at: new Date(Date.now() - 1 * 3600000).toISOString() },
+  { id: "h5", coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", section: "24DEA3101", status: "present", date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), note: "Period 5 · Lecture", created_at: new Date(Date.now() - 26 * 3600000).toISOString() },
+  { id: "h6", coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", section: "24SDCS03", status: "present", date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), note: "Period 7 · Skill", created_at: new Date(Date.now() - 24 * 3600000).toISOString() },
 ];
 
 const HISTORY_FILE = path.join(process.cwd(), ".erp-history.json");

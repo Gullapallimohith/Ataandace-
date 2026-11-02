@@ -16,15 +16,10 @@ dist-ssr
 .nitro
 *.local
 
-# Secrets & Environment Variables
+# Secrets & Environment Variables (Keep secure!)
 .env
 .env*.local
-
-# Local Session & Persistence Files
 .erp-session.json
-.erp-attendance.json
-.erp-history.json
-.app-settings.json
 
 # Wrangler / Cloudflare
 .wrangler/
