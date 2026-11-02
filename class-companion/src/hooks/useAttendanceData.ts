@@ -31,7 +31,9 @@ export function useAttendanceData(enabled = true, semesterKey = "2026-2027_odd")
     queryFn: async (): Promise<Snapshot[]> => {
       // First try fetching from backend with semesterKey filter
       try {
-        const res = await fetch(`/api/public/get-attendance?semesterKey=${encodeURIComponent(semesterKey)}`);
+        const res = await fetch(`/api/public/get-attendance?semesterKey=${encodeURIComponent(semesterKey)}`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const json = await res.json();
           if (json.snapshots && json.snapshots.length > 0) {
@@ -57,16 +59,18 @@ export function useAttendanceData(enabled = true, semesterKey = "2026-2027_odd")
     },
     enabled: true,
     refetchOnWindowFocus: enabled,
-    refetchInterval: enabled ? 30_000 : false,
+    refetchInterval: enabled ? 10_000 : false,
     refetchIntervalInBackground: false,
-    staleTime: enabled ? 0 : 60_000,
+    staleTime: 0,
   });
 
   const history = useQuery({
     queryKey: ["attendance_history", semesterKey],
     queryFn: async (): Promise<HistoryEntry[]> => {
       try {
-        const res = await fetch(`/api/public/get-attendance?semesterKey=${encodeURIComponent(semesterKey)}`);
+        const res = await fetch(`/api/public/get-attendance?semesterKey=${encodeURIComponent(semesterKey)}`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const json = await res.json();
           if (json.history && json.history.length > 0) {
@@ -92,7 +96,9 @@ export function useAttendanceData(enabled = true, semesterKey = "2026-2027_odd")
     },
     enabled: true,
     refetchOnWindowFocus: enabled,
-    staleTime: enabled ? 0 : 60_000,
+    refetchInterval: enabled ? 10_000 : false,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
   });
 
   useEffect(() => {

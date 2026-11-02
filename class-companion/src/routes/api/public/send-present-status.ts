@@ -62,10 +62,6 @@ async function deliverPresentReport() {
       const matchCourse = (snapshots ?? []).find(
         (s) => s.coursecode === p.coursecode && (!p.section || s.section === p.section),
       );
-      const cAttended = matchCourse ? matchCourse.total_attended : p.total_attended ?? 0;
-      const cConducted = matchCourse ? matchCourse.total_conducted : p.total_conducted ?? 0;
-      const cPct = cConducted > 0 ? ((cAttended / cConducted) * 100).toFixed(1) : "";
-
       const noteMatch = p.note?.match(/Conducted:\s*(\d+),\s*Attended:\s*(\d+)/i);
       const cAttended = noteMatch ? noteMatch[2] : (matchCourse ? matchCourse.total_attended : (p.total_attended ?? 0));
       const cConducted = noteMatch ? noteMatch[1] : (matchCourse ? matchCourse.total_conducted : (p.total_conducted ?? 0));

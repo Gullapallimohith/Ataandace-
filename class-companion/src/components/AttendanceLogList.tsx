@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { MessageSquare, Send } from "lucide-react";
+import { MessageSquare, RefreshCw, Send } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { HistoryEntry } from "@/hooks/useAttendanceData";
 
 function StatusLabel({ status }: { status: string }) {
   const present = status.toLowerCase() === "present";
   return (
     <span
-      className={`num shrink-0 text-xs font-bold uppercase tracking-widest ${
-        present ? "text-success" : "text-destructive"
+      className={`num shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
+        present
+          ? "bg-success/15 text-success border border-success/30"
+          : "bg-destructive/15 text-destructive border border-destructive/30"
       }`}
     >
       {present ? "Present" : "Absent"}
@@ -22,8 +25,22 @@ export function AttendanceLogList({
   entries: HistoryEntry[];
   isLoading: boolean;
 }) {
+  const queryClient = useQueryClient();
   const [isSending, setIsSending] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["attendance_history"] }),
+        queryClient.invalidateQueries({ queryKey: ["attendance_snapshot"] }),
+      ]);
+      await queryClient.refetchQueries({ queryKey: ["attendance_history"] });
+    } catch {}
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
 
   const handleSendToTelegram = async () => {
     setIsSending(true);
@@ -32,7 +49,8 @@ export function AttendanceLogList({
       const res = await fetch("/api/public/send-present-status", { method: "POST" });
       const data = await res.json();
       if (data.ok) {
-        setStatusMsg("✅ Present messages sent to your Telegram bot!");
+        setStatusMsg("✅ Recent present logs dispatched directly to your Telegram bot!");
+        await handleRefresh();
         setTimeout(() => setStatusMsg(null), 5000);
       } else {
         setStatusMsg("⚠️ Could not send to Telegram.");
@@ -47,8 +65,23 @@ export function AttendanceLogList({
   return (
     <section className="relative mt-10">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="label-caps">Attendance Log</h2>
-        <div className="flex items-center gap-3">
+        <div>
+          <h2 className="label-caps font-bold">Attendance Log</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Real-time history of classes marked present & absent
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            title="Refresh attendance logs now"
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/50 px-2.5 py-1 font-mono text-xs font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`size-3 ${isRefreshing ? "animate-spin text-primary" : ""}`} />
+            Refresh
+          </button>
           <button
             type="button"
             onClick={handleSendToTelegram}
@@ -59,7 +92,7 @@ export function AttendanceLogList({
             <Send className="size-3" />
             {isSending ? "Sending Present Logs…" : "Send Present to Telegram"}
           </button>
-          <span className="label-caps text-muted-foreground">
+          <span className="label-caps text-muted-foreground ml-1">
             {entries.length} record{entries.length === 1 ? "" : "s"}
           </span>
         </div>
@@ -73,27 +106,42 @@ export function AttendanceLogList({
 
       <div className="relative rounded-[20px] border border-border bg-background">
         {isLoading ? (
-          <p className="px-5 py-6 text-sm text-muted-foreground">Loading log…</p>
+          <p className="px-5 py-6 text-sm text-muted-foreground">Loading recent logs…</p>
         ) : entries.length === 0 ? (
           <p className="px-5 py-6 text-sm text-muted-foreground">
-            No class records yet — entries appear as periods get marked.
+            No class records yet — entries appear as periods get marked in ERP.
           </p>
         ) : (
-          <ul className="log-scroll max-h-[520px] overflow-y-auto">
+          <ul className="log-scroll max-h-[520px] overflow-y-auto divide-y divide-border/40">
             {entries.map((entry) => (
               <li
                 key={entry.id}
-                className="flex min-h-[64px] items-center justify-between gap-4 border-b border-[#1a1a1a] px-5 py-4 last:border-b-0"
+                className="flex min-h-[64px] items-center justify-between gap-4 px-5 py-3.5 hover:bg-secondary/20 transition-colors"
               >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm text-muted-foreground">
-                    {entry.coursedesc || entry.coursecode}
-                    {entry.section ? ` · ${entry.section}` : ""}
-                  </span>
-                  <span className="num mt-1 block text-[11px] text-muted-foreground/70">
-                    {entry.date} {entry.note ? `• ${entry.note}` : ""}
-                  </span>
-                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-foreground">
+                      {entry.coursedesc || entry.coursecode}
+                    </span>
+                    <span className="num shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                      {entry.coursecode}
+                    </span>
+                    {entry.section && entry.section !== entry.coursecode && (
+                      <span className="num shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary font-medium">
+                        {entry.section}
+                      </span>
+                    )}
+                  </div>
+                  <div className="num mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-mono text-foreground/80">{entry.date}</span>
+                    {entry.note && (
+                      <>
+                        <span>•</span>
+                        <span className="text-muted-foreground">{entry.note}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
                 <StatusLabel status={entry.status} />
               </li>
             ))}
