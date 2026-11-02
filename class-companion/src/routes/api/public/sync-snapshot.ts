@@ -34,3 +34,4 @@ export const Route = createFileRoute("/api/public/sync-snapshot")({
     },
   },
 });
+

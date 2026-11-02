@@ -459,8 +459,17 @@ async function submitErpLogin(captchaText) {
     console.log("[ERP] Login successful! Activating live session...");
     writeSession({ cookies: loginRes.cookies, status: "active" });
 
-    // Immediately poll attendance upon login
-    await checkAttendance(true);
+    // Send immediate confirmation to Telegram right after login succeeds
+    await telegramSend(
+      `✅ <b>Logged in to KL ERP (2026 - 2027 Odd Sem)</b>\n` +
+      `👤 Roll Number: <code>${ERP_USERNAME}</code>\n` +
+      `⚡ <b>Real-Time Present Notification is ACTIVE!</b>\n` +
+      `You will receive an instant alert as soon as your attendance is marked present in class.\n\n` +
+      `💡 <i>Tip: Send <code>/present</code> anytime to view your latest present status.</i>`
+    );
+
+    // Trigger initial attendance register sync in background
+    checkAttendance(true).catch(console.error);
   } catch (err) {
     console.error("[ERP] submitErpLogin error:", err.message);
     await telegramSend(`⚠️ Login encounter: ${err.message}. Retrying...`);
@@ -902,15 +911,14 @@ async function startDaemon() {
     console.log("[Daemon] No active session. Requesting initial login CAPTCHA...");
     await startErpLogin();
   } else {
-    console.log("[Daemon] Active session found. Running initial attendance check...");
-    await checkAttendance(false);
+    console.log("[Daemon] Active session found. Real-time monitoring initialized.");
   }
 
   // 3. Start Telegram update listener
   pollTelegramUpdates();
 
-  // 4. Start 60-second attendance polling loop
-  setTimeout(scheduleAttendanceRunner, 5000);
+  // 4. Start attendance polling loop
+  setTimeout(scheduleAttendanceRunner, 3000);
 
   // 5. Start Sunday morning weekly report scheduler (checks every 30s)
   setInterval(checkSundayWeeklySchedule, 30 * 1000);
