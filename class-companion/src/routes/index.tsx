@@ -2,12 +2,12 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { WeeklyTimetable } from "@/components/WeeklyTimetable";
 import { SyncToggle } from "@/components/SyncToggle";
-import { AttendanceOverview, buildCourses, type Course } from "@/components/AttendanceOverview";
+import { AttendanceOverview, buildCourses } from "@/components/AttendanceOverview";
 import { AttendanceLogList } from "@/components/AttendanceLogList";
 import { BunkCalculator } from "@/components/BunkCalculator";
 import { SemesterFilterBar, SEMESTER_OPTIONS } from "@/components/SemesterFilterBar";
 
-import { useAttendanceData } from "@/hooks/useAttendanceData";
+import { useAttendanceData, type Snapshot } from "@/hooks/useAttendanceData";
 import { useSyncSetting } from "@/hooks/useSyncSetting";
 
 export const Route = createFileRoute("/")({
@@ -92,37 +92,52 @@ function OverallHero({
   );
 }
 
-function SubjectCard({ course }: { course: Course }) {
-  const low = course.weighted < LOW;
-  const attended = course.components.reduce((s, c) => s + c.attended, 0);
-  const conducted = course.components.reduce((s, c) => s + c.conducted, 0);
+const COMPONENT_META: Record<string, { label: string; full: string; badge: string }> = {
+  L: { label: "L", full: "Lecture", badge: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
+  P: { label: "P", full: "Practical", badge: "bg-purple-500/15 text-purple-400 border border-purple-500/30" },
+  T: { label: "T", full: "Tutorial", badge: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" },
+  S: { label: "S", full: "Skill", badge: "bg-amber-500/15 text-amber-400 border border-amber-500/30" },
+};
+
+function ComponentCard({ row }: { row: Snapshot }) {
+  const code = (row.ltps ?? "L").trim().toUpperCase().slice(0, 1);
+  const meta = COMPONENT_META[code] ?? {
+    label: code || "L",
+    full: "Class",
+    badge: "bg-secondary text-foreground border border-border",
+  };
+  const value = pct(row.total_attended, row.total_conducted);
+  const low = value < LOW;
 
   return (
-    <article className="bento p-5">
-      <div className="flex items-center justify-between gap-1">
-        <p className="label-caps truncate font-bold text-foreground">
-          {course.coursecode}
+    <article className="bento p-5 relative overflow-hidden transition-all hover:border-primary/40">
+      <div className="flex items-center justify-between gap-1.5">
+        <p className="label-caps font-bold text-foreground truncate">
+          {row.coursecode}
         </p>
-        {course.components.length > 0 && (
-          <span className="num shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
-            {course.components.map((c) => c.code).join("·")}
-          </span>
-        )}
+        <span className={`num shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.badge}`}>
+          {meta.full} · {meta.label}
+        </span>
       </div>
-      <p className={`stat-big mt-2 text-3xl ${low ? "text-destructive" : ""}`}>
-        {course.weighted.toFixed(1)}
+
+      <p className={`stat-big mt-2 text-3xl font-bold ${low ? "text-destructive" : "text-success"}`}>
+        {value.toFixed(1)}
         <span className="ml-0.5 align-top text-base">%</span>
       </p>
-      <p className="mt-3 truncate text-xs text-muted-foreground" title={course.coursedesc}>
-        {course.coursedesc || "—"}
+
+      <p className="mt-2.5 truncate text-xs text-foreground/90 font-medium" title={row.coursedesc}>
+        {row.coursedesc || row.section}
       </p>
-      <p className="num mt-1 text-xs text-muted-foreground">
-        {attended} / {conducted}
-      </p>
-      <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+
+      <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+        <span className="num font-mono">{row.total_attended} / {row.total_conducted}</span>
+        <span className="num text-[11px] truncate">{row.section || "—"}</span>
+      </div>
+
+      <div className="mt-3.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
         <div
           className={`h-full rounded-full transition-[width] duration-700 ${low ? "bg-destructive" : "bg-primary"}`}
-          style={{ width: `${Math.min(course.weighted, 100)}%` }}
+          style={{ width: `${Math.min(value, 100)}%` }}
         />
       </div>
     </article>
@@ -131,6 +146,7 @@ function SubjectCard({ course }: { course: Course }) {
 
 function Dashboard() {
   const [selectedSemester, setSelectedSemester] = useState("2026-2027_odd");
+  const [ltpsFilter, setLtpsFilter] = useState<"ALL" | "L" | "P" | "T" | "S">("ALL");
   const { enabled, isPending, setEnabled } = useSyncSetting();
   const { snapshots, history } = useAttendanceData(enabled, selectedSemester);
   const rows = snapshots.data ?? [];
@@ -143,6 +159,15 @@ function Dashboard() {
   const overall = courses.length > 0
     ? courses.reduce((sum, c) => sum + c.weighted, 0) / courses.length
     : pct(attended, conducted);
+
+  const lCount = rows.filter((r) => (r.ltps ?? "").trim().toUpperCase().slice(0, 1) === "L").length;
+  const pCount = rows.filter((r) => (r.ltps ?? "").trim().toUpperCase().slice(0, 1) === "P").length;
+  const tCount = rows.filter((r) => (r.ltps ?? "").trim().toUpperCase().slice(0, 1) === "T").length;
+  const sCount = rows.filter((r) => (r.ltps ?? "").trim().toUpperCase().slice(0, 1) === "S").length;
+
+  const filteredRows = ltpsFilter === "ALL"
+    ? rows
+    : rows.filter((r) => (r.ltps ?? "").trim().toUpperCase().slice(0, 1) === ltpsFilter);
 
   const lastSynced = enabled
     ? rows.reduce<string | null>(
@@ -186,22 +211,84 @@ function Dashboard() {
         />
 
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="label-caps">Per Subject</h2>
-            <span className="text-xs text-muted-foreground">
-              {courses.length} subjects · LTPS Weighted
-            </span>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="label-caps font-bold">L · T · P · S Components (Separate)</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Every Lecture, Tutorial, Practical & Skill class tracked individually
+              </p>
+            </div>
+
+            {/* Quick Filter Pill Buttons */}
+            <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-secondary/30 p-1">
+              <button
+                type="button"
+                onClick={() => setLtpsFilter("ALL")}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  ltpsFilter === "ALL"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All ({rows.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setLtpsFilter("L")}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  ltpsFilter === "L"
+                    ? "bg-blue-500 text-white shadow-sm"
+                    : "text-blue-400 hover:text-blue-300"
+                }`}
+              >
+                Lecture ({lCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setLtpsFilter("P")}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  ltpsFilter === "P"
+                    ? "bg-purple-500 text-white shadow-sm"
+                    : "text-purple-400 hover:text-purple-300"
+                }`}
+              >
+                Practical ({pCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setLtpsFilter("T")}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  ltpsFilter === "T"
+                    ? "bg-emerald-500 text-white shadow-sm"
+                    : "text-emerald-400 hover:text-emerald-300"
+                }`}
+              >
+                Tutorial ({tCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setLtpsFilter("S")}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  ltpsFilter === "S"
+                    ? "bg-amber-500 text-white shadow-sm"
+                    : "text-amber-400 hover:text-amber-300"
+                }`}
+              >
+                Skill ({sCount})
+              </button>
+            </div>
           </div>
+
           {snapshots.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading subjects…</p>
-          ) : courses.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Loading components…</p>
+          ) : filteredRows.length === 0 ? (
             <p className="bento p-6 text-sm text-muted-foreground">
-              No attendance synced yet. Subjects appear here once the ERP session is active.
+              No classes found for the selected filter.
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {courses.map((course) => (
-                <SubjectCard key={course.coursecode} course={course} />
+              {filteredRows.map((row) => (
+                <ComponentCard key={`${row.coursecode}-${row.section}-${row.ltps}`} row={row} />
               ))}
             </div>
           )}
