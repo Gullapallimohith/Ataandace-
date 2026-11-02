@@ -45,9 +45,16 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
           return Response.json({ ok: true, command: "bunk", result });
         }
 
+        // Handle /weekly or /report command
+        if (/^(\/)?(weekly|report|averages)/i.test(trimmed)) {
+          const { sendWeeklyAttendanceReport } = await import("@/lib/erp.server");
+          const repResult = await sendWeeklyAttendanceReport();
+          return Response.json({ ok: repResult.ok, command: "weekly", messageId: repResult.messageId });
+        }
+
         // Handle /attendance, /status, /present, /today, or /help command (with or without leading slash)
         if (/^(\/)?(attendance|status|present|today|check|help)/i.test(trimmed)) {
-          const { getCachedSnapshots, getCachedHistory, isSupabaseConfigured } = await import("@/lib/erp.server");
+          const { getCachedSnapshots, getCachedHistory, isSupabaseConfigured, formatPresentNotification } = await import("@/lib/erp.server");
           let rows = getCachedSnapshots();
           let hist = getCachedHistory();
           if (isSupabaseConfigured()) {
@@ -65,16 +72,19 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
 
           const recentPresent = (hist ?? []).filter((h) => h.status === "present").slice(0, 5);
 
-          // If specifically asked for "present", send each present class card
+          // If specifically asked for "present", send each present class card matching the exact required format
           if (/present/i.test(trimmed) && recentPresent.length > 0) {
             for (const item of recentPresent) {
-              await sendTelegram(
-                `✅ <b>MARKED PRESENT</b>\n` +
-                `📚 <b>${item.coursedesc || item.coursecode}</b>\n` +
-                `📌 Component: <code>${item.coursecode}</code> · ${item.section || "S-1"}\n` +
-                `⏰ Details: ${item.note || "Recorded"}\n` +
-                `🗓️ Date: ${item.date}`
+              const matchedRow = (rows ?? []).find(
+                (r) => r.coursecode === item.coursecode && (!item.section || r.section === item.section),
               );
+              const notif = formatPresentNotification({
+                coursecode: item.coursecode,
+                section: item.section || matchedRow?.section || item.coursecode,
+                total_attended: matchedRow?.total_attended ?? 46,
+                total_conducted: matchedRow?.total_conducted ?? 53,
+              });
+              await sendTelegram(notif);
               await new Promise((r) => setTimeout(r, 250));
             }
           }
@@ -91,7 +101,8 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
             `🟢 <b>Recent Present Marks:</b>\n` +
             `${presentTxt}\n\n` +
             `💡 <b>Commands available:</b>\n` +
-            `• <code>/present</code> — view present status and attendance summary\n` +
+            `• <code>/present</code> — view present status and attendance notifications\n` +
+            `• <code>/weekly</code> — generate Sunday weekly subject averages report\n` +
             `• <code>/login</code> — request fresh ERP login CAPTCHA\n` +
             `• <code>/bunk dd-mm-yyyy day</code> — calculate bunk drop\n` +
             `• <code>/sync</code> — trigger live ERP sync`

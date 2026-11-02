@@ -30,6 +30,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || "http://localhost:8080/api/public/telegram-webhook";
 const ATTENDANCE_POLL_URL = process.env.ATTENDANCE_POLL_URL || "http://localhost:8080/api/public/poll-attendance";
 const NOTIFY_PERIOD_URL = process.env.NOTIFY_PERIOD_URL || "http://localhost:8080/api/public/notify-period";
+const WEEKLY_REPORT_URL = process.env.WEEKLY_REPORT_URL || "http://localhost:8080/api/public/weekly-report";
 
 if (!BOT_TOKEN) {
   console.error("[Telegram] ERROR: TELEGRAM_BOT_TOKEN is not configured in environment or .env file!");
@@ -107,10 +108,45 @@ async function runPeriodAlert() {
   }
 }
 
+/* ---------------- Sunday 5:00 PM Weekly Report Scheduler ---------------- */
+let lastWeeklyReportDate = null;
+
+async function runWeeklyReport() {
+  const timestamp = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+  try {
+    console.log(`[Scheduler] [${timestamp}] Triggering Sunday 5:00 PM Weekly Subject Averages Report...`);
+    const res = await fetch(WEEKLY_REPORT_URL, { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`[Scheduler] [${timestamp}] Weekly report delivered:`, data.messageId || "sent");
+    } else {
+      console.warn(`[Scheduler] [${timestamp}] Weekly report returned HTTP ${res.status}`);
+    }
+  } catch (err) {
+    console.error(`[Scheduler] [${timestamp}] Weekly report error:`, err.message);
+  }
+}
+
+function checkSundayWeeklySchedule() {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  const isSunday = ist.getUTCDay() === 0;
+  const hours = ist.getUTCHours();
+  const minutes = ist.getUTCMinutes();
+  const dateStr = ist.toISOString().slice(0, 10);
+
+  // Trigger automatically at 17:00 (5:00 PM) IST every Sunday
+  if (isSunday && hours === 17 && minutes === 0 && lastWeeklyReportDate !== dateStr) {
+    lastWeeklyReportDate = dateStr;
+    runWeeklyReport();
+  }
+}
+
 console.log(`[Telegram] Worker started successfully.`);
 console.log(`[Telegram] Bot Token: ${BOT_TOKEN.slice(0, 6)}... configured from environment.`);
 console.log(`[Scheduler] 10-Minute Attendance Monitor scheduled (interval: 600,000 ms).`);
 console.log(`[Scheduler] 5-Minute Class Period Alerts scheduled (interval: 300,000 ms).`);
+console.log(`[Scheduler] Sunday 5:00 PM Weekly Attendance Report scheduled (checked every 30s).`);
 
 // Start Telegram polling loop
 pollTelegramUpdates();
@@ -118,6 +154,7 @@ pollTelegramUpdates();
 // Start scheduled background jobs
 setInterval(runAttendancePoll, TEN_MINUTES_MS);
 setInterval(runPeriodAlert, FIVE_MINUTES_MS);
+setInterval(checkSundayWeeklySchedule, 30 * 1000); // Check every 30 seconds for Sunday 17:00 IST
 
 // Run initial check after 5s
 setTimeout(runAttendancePoll, 5000);

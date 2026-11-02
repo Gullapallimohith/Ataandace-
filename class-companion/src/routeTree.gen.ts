@@ -20,6 +20,7 @@ import { Route as ApiPublicSetupWebhookRouteImport } from './routes/api/public/s
 import { Route as ApiPublicStartLoginRouteImport } from './routes/api/public/start-login'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram-webhook'
 import { Route as ApiPublicTestTelegramRouteImport } from './routes/api/public/test-telegram'
+import { Route as ApiPublicWeeklyReportRouteImport } from './routes/api/public/weekly-report'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -78,6 +79,11 @@ const ApiPublicTestTelegramRoute = ApiPublicTestTelegramRouteImport.update({
   path: '/api/public/test-telegram',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWeeklyReportRoute = ApiPublicWeeklyReportRouteImport.update({
+  id: '/api/public/weekly-report',
+  path: '/api/public/weekly-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/test-telegram': typeof ApiPublicTestTelegramRoute
+  '/api/public/weekly-report': typeof ApiPublicWeeklyReportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/test-telegram': typeof ApiPublicTestTelegramRoute
+  '/api/public/weekly-report': typeof ApiPublicWeeklyReportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/test-telegram': typeof ApiPublicTestTelegramRoute
+  '/api/public/weekly-report': typeof ApiPublicWeeklyReportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/api/public/start-login'
     | '/api/public/telegram-webhook'
     | '/api/public/test-telegram'
+    | '/api/public/weekly-report'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/api/public/start-login'
     | '/api/public/telegram-webhook'
     | '/api/public/test-telegram'
+    | '/api/public/weekly-report'
   id:
     | '__root__'
     | '/'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '/api/public/start-login'
     | '/api/public/telegram-webhook'
     | '/api/public/test-telegram'
+    | '/api/public/weekly-report'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -173,6 +185,7 @@ export interface RootRouteChildren {
   ApiPublicStartLoginRoute: typeof ApiPublicStartLoginRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicTestTelegramRoute: typeof ApiPublicTestTelegramRoute
+  ApiPublicWeeklyReportRoute: typeof ApiPublicWeeklyReportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -254,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTestTelegramRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/weekly-report': {
+      id: '/api/public/weekly-report'
+      path: '/api/public/weekly-report'
+      fullPath: '/api/public/weekly-report'
+      preLoaderRoute: typeof ApiPublicWeeklyReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -269,6 +289,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicStartLoginRoute: ApiPublicStartLoginRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicTestTelegramRoute: ApiPublicTestTelegramRoute,
+  ApiPublicWeeklyReportRoute: ApiPublicWeeklyReportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

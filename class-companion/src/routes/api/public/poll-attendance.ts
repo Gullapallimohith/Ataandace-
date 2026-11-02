@@ -15,6 +15,7 @@ const handler = async () => {
     saveCachedHistory,
     isSupabaseConfigured,
     isSyncEnabled,
+    formatPresentNotification,
   } = await import("@/lib/erp.server");
   const { istNow } = await import("@/lib/timetable");
 
@@ -105,9 +106,17 @@ const handler = async () => {
       }
 
       changes.push(`${row.coursecode} · ${row.section} (${status.toUpperCase()})`);
-      await sendTelegram(
-        `${status === "present" ? "✅" : "❌"} <b>${row.coursecode}</b> · ${row.section}\nMarked <b>${status.toUpperCase()}</b>\nAttendance: ${row.total_attended}/${row.total_conducted}`,
-      );
+      if (status === "present") {
+        await sendTelegram(formatPresentNotification(row));
+      } else {
+        const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+        const hh = String(istDate.getUTCHours()).padStart(2, "0");
+        const mm = String(istDate.getUTCMinutes()).padStart(2, "0");
+        const timeStr = `${hh}:${mm}`;
+        await sendTelegram(
+          `❌ ${row.coursecode} · ${row.section || row.coursecode}\nMarked ABSENT\nAttendance: ${row.total_attended}/${row.total_conducted}\n\n${timeStr}`,
+        );
+      }
     }
   }
 
