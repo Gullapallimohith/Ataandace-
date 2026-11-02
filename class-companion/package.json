@@ -8,6 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
+    "scheduler": "node telegram-poller.mjs",
+    "poller": "node telegram-poller.mjs",
     "test:audit": "node scripts/audit-test-suite.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
