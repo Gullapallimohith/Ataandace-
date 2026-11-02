@@ -4,13 +4,13 @@ export const Route = createFileRoute("/api/public/get-attendance")({
   server: {
     handlers: {
       GET: async () => {
-        const { admin, getCachedSnapshots, getCachedHistory, getSession } = await import(
+        const { admin, getCachedSnapshots, getCachedHistory, getSession, isSupabaseConfigured } = await import(
           "@/lib/erp.server"
         );
         let snapshots: any[] = [];
         let history: any[] = [];
 
-        if (process.env["SUPABASE_URL"] && !process.env["SUPABASE_URL"].includes("YOUR-PROJECT-REF")) {
+        if (isSupabaseConfigured()) {
           try {
             const db = admin();
             const { data } = await db.from("attendance_snapshot").select("*").order("coursecode");

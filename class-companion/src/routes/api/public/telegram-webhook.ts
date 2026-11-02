@@ -45,9 +45,9 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
 
         // Handle /attendance or /status command
         if (/^\/(attendance|status|help)/i.test(trimmed)) {
-          const { getCachedSnapshots } = await import("@/lib/erp.server");
+          const { getCachedSnapshots, isSupabaseConfigured } = await import("@/lib/erp.server");
           let rows = getCachedSnapshots();
-          if (process.env["SUPABASE_URL"] && !process.env["SUPABASE_URL"].includes("YOUR-PROJECT-REF")) {
+          if (isSupabaseConfigured()) {
             try {
               const { data } = await db.from("attendance_snapshot").select("*");
               if (data && data.length > 0) rows = data;
