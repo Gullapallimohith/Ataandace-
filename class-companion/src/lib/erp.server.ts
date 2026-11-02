@@ -277,15 +277,20 @@ export async function saveSession(
   }
 }
 
-/* ---------------- Telegram ---------------- */
+/* ---------------- Telegram & ERP Credentials ---------------- */
+
+export const TELEGRAM_BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"] || "8613481579:AAGKXxdS4Y9jkJhFpdOQVDXVefCvI2-shtI";
+export const TELEGRAM_CHAT_ID = process.env["TELEGRAM_CHAT_ID"] || "7365716186";
+export const ERP_USERNAME = process.env["ERP_USERNAME"] || "2420030663";
+export const ERP_PASSWORD = process.env["ERP_PASSWORD"] || "Mohith@123";
 
 export function telegramApi(method: string) {
-  return `https://api.telegram.org/bot${process.env["TELEGRAM_BOT_TOKEN"]}/${method}`;
+  return `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`;
 }
 
 export async function sendTelegram(text: string): Promise<{ ok: boolean; messageId?: number; error?: string }> {
-  const chatId = process.env["TELEGRAM_CHAT_ID"];
-  const botToken = process.env["TELEGRAM_BOT_TOKEN"];
+  const chatId = TELEGRAM_CHAT_ID;
+  const botToken = TELEGRAM_BOT_TOKEN;
   if (!botToken || !chatId) {
     const err = "Telegram credentials are not configured";
     console.error(`[Telegram] ${err}`);
@@ -325,8 +330,8 @@ export async function sendTelegram(text: string): Promise<{ ok: boolean; message
 }
 
 export async function sendTelegramPhoto(photo: ArrayBuffer, caption: string): Promise<{ ok: boolean; error?: string }> {
-  const chatId = process.env["TELEGRAM_CHAT_ID"];
-  const botToken = process.env["TELEGRAM_BOT_TOKEN"];
+  const chatId = TELEGRAM_CHAT_ID;
+  const botToken = TELEGRAM_BOT_TOKEN;
   if (!botToken || !chatId) {
     const err = "Telegram credentials are not configured";
     console.error(`[Telegram] ${err}`);
@@ -590,7 +595,7 @@ export async function startErpLogin(): Promise<{
     image,
     `📸 <b>KL University ERP Verification</b>\n` +
     `🎯 Target: <b>Academic Year 2026 - 2027 (Odd Sem)</b>\n` +
-    `👤 Roll Number: <code>${process.env["ERP_USERNAME"] || "2420030663"}</code>\n\n` +
+    `👤 Roll Number: <code>${ERP_USERNAME}</code>\n\n` +
     `Reply to this message with the CAPTCHA text you see below to complete login:`
   );
   return { ok: true, message: "CAPTCHA loaded", captchaBase64, csrfToken: csrf ?? undefined };
@@ -614,8 +619,8 @@ export async function submitErpLogin(
     return { ok: false, message: "No active login session. Please fetch a new CAPTCHA first." };
   }
 
-  const finalUsername = (username || process.env["ERP_USERNAME"] || "").trim();
-  const finalPassword = (password || process.env["ERP_PASSWORD"] || "").trim();
+  const finalUsername = (username || ERP_USERNAME).trim();
+  const finalPassword = (password || ERP_PASSWORD).trim();
   const finalCaptcha = (captchaCode || "").replace(/\s+/g, "").trim();
 
   if (!finalUsername || !finalPassword) {

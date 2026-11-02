@@ -18,6 +18,8 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
           erpFetch,
           looksLikeLoginPage,
           ERP_LOGIN_URL,
+          ERP_USERNAME,
+          ERP_PASSWORD,
         } = await import("@/lib/erp.server");
 
         let update: TelegramUpdate;
@@ -122,8 +124,8 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
 
         // Parse credentials / CAPTCHA from user reply
         const tokens = trimmed.split(/\s+/);
-        let erpUser = (process.env["ERP_USERNAME"] ?? "").trim();
-        let erpPass = (process.env["ERP_PASSWORD"] ?? "").trim();
+        let erpUser = (process.env["ERP_USERNAME"] || ERP_USERNAME).trim();
+        let erpPass = (process.env["ERP_PASSWORD"] || ERP_PASSWORD).trim();
         let erpCaptcha = "";
 
         if (tokens.length >= 3) {

@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { telegramApi as tgUrl } from "@/lib/erp.server";
+import { telegramApi as tgUrl, TELEGRAM_BOT_TOKEN } from "@/lib/erp.server";
 
-const BASE = process.env["APP_URL"] || "https://YOUR-PUBLIC-URL.com";
+const BASE = process.env["APP_URL"] || "https://ataandace.vercel.app";
 
 async function register() {
-  if (!process.env["TELEGRAM_BOT_TOKEN"]) {
+  if (!TELEGRAM_BOT_TOKEN) {
     return Response.json({ error: "TELEGRAM_BOT_TOKEN not configured" }, { status: 500 });
   }
 

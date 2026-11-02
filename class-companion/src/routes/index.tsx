@@ -134,9 +134,9 @@ function Dashboard() {
   const overall = pct(attended, conducted);
   const lastSynced = enabled
     ? rows.reduce<string | null>(
-        (latest, r) => (!latest || r.updated_at > latest ? r.updated_at : latest),
-        null,
-      )
+      (latest, r) => (!latest || r.updated_at > latest ? r.updated_at : latest),
+      null,
+    )
     : null;
 
   const currentOption =
