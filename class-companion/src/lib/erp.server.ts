@@ -393,6 +393,111 @@ export function formatPresentNotification(
 }
 
 /**
+ * Compare new attendance rows against previous snapshots, record history,
+ * and dispatch immediate Telegram notifications if attendance is marked PRESENT or ABSENT.
+ */
+export async function checkAndNotifyAttendanceChanges(
+  rows: AttendanceRow[],
+  db?: SupabaseClient | null,
+): Promise<{ changes: string[]; newHistory: any[] }> {
+  let previousSnapshots: any[] = [];
+  if (db && isSupabaseConfigured()) {
+    try {
+      const { data } = await db
+        .from("attendance_snapshot")
+        .select("coursecode, section, ltps, total_conducted, total_attended");
+      if (data && data.length > 0) previousSnapshots = data;
+    } catch {}
+  }
+  if (previousSnapshots.length === 0) {
+    previousSnapshots = getCachedSnapshots();
+  }
+
+  const previous = new Map(
+    (previousSnapshots ?? []).map((s) => [`${s.coursecode}|${s.section}|${s.ltps}`, s] as const),
+  );
+
+  const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  const today = istDate.toISOString().slice(0, 10);
+  const hh = String(istDate.getUTCHours()).padStart(2, "0");
+  const mm = String(istDate.getUTCMinutes()).padStart(2, "0");
+  const timeStr = `${hh}:${mm}`;
+
+  const changes: string[] = [];
+  const newHistoryEntries: any[] = [];
+
+  for (const row of rows) {
+    const prev = previous.get(`${row.coursecode}|${row.section}|${row.ltps}`);
+    if (prev) {
+      if (row.total_attended > prev.total_attended) {
+        // Attendance marked PRESENT
+        const entry = {
+          id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          coursecode: row.coursecode,
+          coursedesc: row.coursedesc,
+          section: row.section,
+          status: "present",
+          date: today,
+          note: `Conducted: ${row.total_conducted}, Attended: ${row.total_attended}`,
+          created_at: new Date().toISOString(),
+        };
+        newHistoryEntries.push(entry);
+        changes.push(`${row.coursecode} · ${row.section} (PRESENT)`);
+        await sendTelegram(formatPresentNotification(row));
+      } else if (row.total_conducted > prev.total_conducted) {
+        // Class conducted, student marked ABSENT
+        const entry = {
+          id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          coursecode: row.coursecode,
+          coursedesc: row.coursedesc,
+          section: row.section,
+          status: "absent",
+          date: today,
+          note: `Conducted: ${row.total_conducted}, Attended: ${row.total_attended}`,
+          created_at: new Date().toISOString(),
+        };
+        newHistoryEntries.push(entry);
+        changes.push(`${row.coursecode} · ${row.section} (ABSENT)`);
+        await sendTelegram(
+          `❌ ${row.coursecode} · ${row.section || row.coursecode}\nMarked ABSENT\nAttendance: ${row.total_attended}/${row.total_conducted}\n\n${timeStr}`,
+        );
+      }
+    }
+  }
+
+  if (newHistoryEntries.length > 0) {
+    saveCachedHistory([...newHistoryEntries, ...getCachedHistory()]);
+    if (db && isSupabaseConfigured()) {
+      try {
+        await db.from("attendance_history").insert(
+          newHistoryEntries.map((e) => ({
+            coursecode: e.coursecode,
+            coursedesc: e.coursedesc,
+            section: e.section,
+            status: e.status,
+            date: e.date,
+          })),
+        );
+      } catch {}
+    }
+  }
+
+  saveCachedSnapshots(rows);
+  if (db && isSupabaseConfigured()) {
+    try {
+      await db.from("attendance_snapshot").upsert(
+        rows.map((r) => ({ ...r, updated_at: new Date().toISOString() })),
+        { onConflict: "coursecode,section,ltps" },
+      );
+    } catch (upsertError: any) {
+      console.warn("DB snapshot upsert warning:", upsertError?.message);
+    }
+  }
+
+  return { changes, newHistory: newHistoryEntries };
+}
+
+/**
  * Format the Weekly Subject Averages matching the exact reference format:
  * 📊 Weekly Subject Averages
  * 
@@ -795,13 +900,7 @@ export async function submitErpLogin(
       const rows = parseAttendanceTable(att.html);
       if (rows.length > 0) {
         rowsCount = rows.length;
-        saveCachedSnapshots(rows);
-        if (db && isSupabaseConfigured()) {
-          await db.from("attendance_snapshot").upsert(
-            rows.map((r) => ({ ...r, updated_at: new Date().toISOString() })),
-            { onConflict: "coursecode,section,ltps" },
-          );
-        }
+        await checkAndNotifyAttendanceChanges(rows, db);
         const conducted = rows.reduce((s, r) => s + r.total_conducted, 0);
         const attended = rows.reduce((s, r) => s + r.total_attended, 0);
         const overallPct = conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0";
