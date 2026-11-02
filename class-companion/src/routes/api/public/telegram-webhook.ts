@@ -43,26 +43,40 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
           return Response.json({ ok: true, command: "bunk", result });
         }
 
-        // Handle /attendance or /status command
-        if (/^\/(attendance|status|help)/i.test(trimmed)) {
-          const { getCachedSnapshots, isSupabaseConfigured } = await import("@/lib/erp.server");
+        // Handle /attendance, /status, /present, /today, or /help command
+        if (/^\/(attendance|status|present|today|check|help)/i.test(trimmed)) {
+          const { getCachedSnapshots, getCachedHistory, isSupabaseConfigured } = await import("@/lib/erp.server");
           let rows = getCachedSnapshots();
+          let hist = getCachedHistory();
           if (isSupabaseConfigured()) {
             try {
               const { data } = await db.from("attendance_snapshot").select("*");
               if (data && data.length > 0) rows = data;
+              const { data: histData } = await db.from("attendance_history").select("*").limit(10);
+              if (histData && histData.length > 0) hist = histData;
             } catch {}
           }
           const conducted = (rows ?? []).reduce((s, r) => s + (r.total_conducted || 0), 0);
           const attended = (rows ?? []).reduce((s, r) => s + (r.total_attended || 0), 0);
+          const absent = Math.max(conducted - attended, 0);
           const pctVal = conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0";
+
+          const recentPresent = (hist ?? []).filter((h) => h.status === "present").slice(0, 4);
+          let presentTxt = recentPresent.length > 0
+            ? recentPresent.map((h) => `• <b>${h.coursedesc || h.coursecode}</b>: 🟢 <b>PRESENT</b>`).join("\n")
+            : "• All tracked courses in sync.";
+
           await sendTelegram(
             `📊 <b>Class Companion Status (2026 - 2027 Odd Sem)</b>\n` +
             `• Overall Attendance: <b>${pctVal}%</b> (${attended}/${conducted} classes)\n` +
-            `• Tracked Courses: <b>${rows?.length ?? 0} components</b>\n\n` +
+            `• Total Absent Hours: <b>${absent}</b>\n` +
+            `• Status: ${Number(pctVal) >= 75 ? "✅ Safe (Above 75%)" : "⚠️ Needs Attention"}\n\n` +
+            `🟢 <b>Recent Present Marks:</b>\n` +
+            `${presentTxt}\n\n` +
             `💡 <b>Commands available:</b>\n` +
-            `• <code>/bunk dd-mm-yyyy day</code> — calculate attendance drop if you miss classes on that day\n` +
-            `• <code>/attendance</code> — show current attendance summary\n` +
+            `• <code>/present</code> — view present status and attendance summary\n` +
+            `• <code>/login</code> — request fresh ERP login CAPTCHA\n` +
+            `• <code>/bunk dd-mm-yyyy day</code> — calculate bunk drop\n` +
             `• <code>/sync</code> — trigger live ERP sync`
           );
           return Response.json({ ok: true, command: "status" });

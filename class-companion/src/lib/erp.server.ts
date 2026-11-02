@@ -124,6 +124,82 @@ export const DEFAULT_HISTORY = [
   { id: "h6", coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", section: "24SDCS03", status: "present", date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), note: "Period 7 · Skill", created_at: new Date(Date.now() - 24 * 3600000).toISOString() },
 ];
 
+export type SemesterOption = {
+  key: string;
+  label: string;
+  academicYear: string;
+  semesterId: string;
+  courses: (AttendanceRow & { updated_at: string })[];
+};
+
+export const SEMESTER_DATA: Record<string, SemesterOption> = {
+  "2026-2027_odd": {
+    key: "2026-2027_odd",
+    label: "2026 – 2027 · Odd Sem (Current)",
+    academicYear: "2026 - 2027",
+    semesterId: "odd",
+    courses: DEFAULT_COURSES,
+  },
+  "2025-2026_even": {
+    key: "2025-2026_even",
+    label: "2025 – 2026 · Even Sem",
+    academicYear: "2025 - 2026",
+    semesterId: "even",
+    courses: [
+      { coursecode: "23CS2101", coursedesc: "DATABASE MANAGEMENT SYSTEMS", ltps: "L", section: "23CS2101", total_conducted: 48, total_attended: 42, updated_at: new Date().toISOString() },
+      { coursecode: "23CS2101", coursedesc: "DATABASE MANAGEMENT SYSTEMS", ltps: "P", section: "23CS2101", total_conducted: 24, total_attended: 22, updated_at: new Date().toISOString() },
+      { coursecode: "23CS2102", coursedesc: "OPERATING SYSTEMS", ltps: "L", section: "23CS2102", total_conducted: 46, total_attended: 39, updated_at: new Date().toISOString() },
+      { coursecode: "23CS2102", coursedesc: "OPERATING SYSTEMS", ltps: "P", section: "23CS2102", total_conducted: 22, total_attended: 20, updated_at: new Date().toISOString() },
+      { coursecode: "23CS2103", coursedesc: "COMPUTER NETWORKS", ltps: "L", section: "23CS2103", total_conducted: 44, total_attended: 38, updated_at: new Date().toISOString() },
+      { coursecode: "23CS2103", coursedesc: "COMPUTER NETWORKS", ltps: "P", section: "23CS2103", total_conducted: 20, total_attended: 18, updated_at: new Date().toISOString() },
+      { coursecode: "23CS2104", coursedesc: "OBJECT ORIENTED PROGRAMMING USING JAVA", ltps: "L", section: "23CS2104", total_conducted: 40, total_attended: 36, updated_at: new Date().toISOString() },
+      { coursecode: "23CS2104", coursedesc: "OBJECT ORIENTED PROGRAMMING USING JAVA", ltps: "P", section: "23CS2104", total_conducted: 24, total_attended: 22, updated_at: new Date().toISOString() },
+      { coursecode: "23MT2005", coursedesc: "DISCRETE MATHEMATICAL STRUCTURES", ltps: "L", section: "23MT2005", total_conducted: 50, total_attended: 44, updated_at: new Date().toISOString() },
+    ],
+  },
+  "2025-2026_odd": {
+    key: "2025-2026_odd",
+    label: "2025 – 2026 · Odd Sem",
+    academicYear: "2025 - 2026",
+    semesterId: "odd",
+    courses: [
+      { coursecode: "23CS1201", coursedesc: "DATA STRUCTURES AND ALGORITHMS", ltps: "L", section: "23CS1201", total_conducted: 52, total_attended: 45, updated_at: new Date().toISOString() },
+      { coursecode: "23CS1201", coursedesc: "DATA STRUCTURES AND ALGORITHMS", ltps: "P", section: "23CS1201", total_conducted: 26, total_attended: 24, updated_at: new Date().toISOString() },
+      { coursecode: "23EC1202", coursedesc: "DIGITAL LOGIC AND COMPUTER DESIGN", ltps: "L", section: "23EC1202", total_conducted: 45, total_attended: 38, updated_at: new Date().toISOString() },
+      { coursecode: "23EC1202", coursedesc: "DIGITAL LOGIC AND COMPUTER DESIGN", ltps: "P", section: "23EC1202", total_conducted: 20, total_attended: 19, updated_at: new Date().toISOString() },
+      { coursecode: "23MT1203", coursedesc: "PROBABILITY AND STATISTICS", ltps: "L", section: "23MT1203", total_conducted: 48, total_attended: 41, updated_at: new Date().toISOString() },
+      { coursecode: "23CS1204", coursedesc: "PYTHON PROGRAMMING FOR DATA SCIENCE", ltps: "S", section: "23CS1204", total_conducted: 36, total_attended: 32, updated_at: new Date().toISOString() },
+    ],
+  },
+  "2024-2025_even": {
+    key: "2024-2025_even",
+    label: "2024 – 2025 · Even Sem",
+    academicYear: "2024 - 2025",
+    semesterId: "even",
+    courses: [
+      { coursecode: "22SC1101", coursedesc: "PROBLEM SOLVING THROUGH C PROGRAMMING", ltps: "L", section: "22SC1101", total_conducted: 50, total_attended: 46, updated_at: new Date().toISOString() },
+      { coursecode: "22SC1101", coursedesc: "PROBLEM SOLVING THROUGH C PROGRAMMING", ltps: "P", section: "22SC1101", total_conducted: 28, total_attended: 27, updated_at: new Date().toISOString() },
+      { coursecode: "22PH1102", coursedesc: "ENGINEERING PHYSICS", ltps: "L", section: "22PH1102", total_conducted: 44, total_attended: 39, updated_at: new Date().toISOString() },
+      { coursecode: "22PH1102", coursedesc: "ENGINEERING PHYSICS", ltps: "P", section: "22PH1102", total_conducted: 20, total_attended: 19, updated_at: new Date().toISOString() },
+      { coursecode: "22MT1103", coursedesc: "LINEAR ALGEBRA AND CALCULUS", ltps: "L", section: "22MT1103", total_conducted: 54, total_attended: 48, updated_at: new Date().toISOString() },
+      { coursecode: "22EN1104", coursedesc: "TECHNICAL COMMUNICATION SKILLS", ltps: "L", section: "22EN1104", total_conducted: 32, total_attended: 30, updated_at: new Date().toISOString() },
+    ],
+  },
+  "2024-2025_odd": {
+    key: "2024-2025_odd",
+    label: "2024 – 2025 · Odd Sem",
+    academicYear: "2024 - 2025",
+    semesterId: "odd",
+    courses: [
+      { coursecode: "22MT1001", coursedesc: "ENGINEERING MATHEMATICS - I", ltps: "L", section: "22MT1001", total_conducted: 50, total_attended: 45, updated_at: new Date().toISOString() },
+      { coursecode: "22EE1002", coursedesc: "BASIC ELECTRICAL AND ELECTRONICS ENGINEERING", ltps: "L", section: "22EE1002", total_conducted: 46, total_attended: 40, updated_at: new Date().toISOString() },
+      { coursecode: "22EE1002", coursedesc: "BASIC ELECTRICAL AND ELECTRONICS ENGINEERING", ltps: "P", section: "22EE1002", total_conducted: 22, total_attended: 21, updated_at: new Date().toISOString() },
+      { coursecode: "22ME1003", coursedesc: "ENGINEERING GRAPHICS AND DESIGN", ltps: "P", section: "22ME1003", total_conducted: 36, total_attended: 32, updated_at: new Date().toISOString() },
+      { coursecode: "22CS1004", coursedesc: "INTRODUCTION TO COMPUTATIONAL THINKING", ltps: "L", section: "22CS1004", total_conducted: 34, total_attended: 31, updated_at: new Date().toISOString() },
+    ],
+  },
+};
+
 const HISTORY_FILE = path.join(process.cwd(), ".erp-history.json");
 
 function readStoredHistory(): any[] | null {
@@ -260,11 +336,21 @@ export async function sendTelegramPhoto(photo: ArrayBuffer, caption: string): Pr
     const form = new FormData();
     form.append("chat_id", chatId);
     form.append("caption", caption);
+    form.append("parse_mode", "HTML");
     form.append("photo", new Blob([photo], { type: "image/png" }), "captcha.png");
     const res = await fetch(telegramApi("sendPhoto"), { method: "POST", body: form });
     if (!res.ok) {
       const errText = await res.text();
       console.error(`[Telegram] sendPhoto failed [${res.status}]: ${errText}`);
+      // Fallback without parse_mode if entity parsing error
+      if (res.status === 400) {
+        const fallbackForm = new FormData();
+        fallbackForm.append("chat_id", chatId);
+        fallbackForm.append("caption", caption.replace(/<[^>]+>/g, ""));
+        fallbackForm.append("photo", new Blob([photo], { type: "image/png" }), "captcha.png");
+        const fbRes = await fetch(telegramApi("sendPhoto"), { method: "POST", body: fallbackForm });
+        if (fbRes.ok) return { ok: true };
+      }
       return { ok: false, error: `[${res.status}] ${errText}` };
     }
     return { ok: true };
@@ -614,7 +700,7 @@ export async function submitErpLogin(
 
 /**
  * Extract academic year ID from form HTML.
- * Explicitly targets Academic Year "2026 - 2027", falling back to 2026, then newest.
+ * Targets requested academic year (e.g. "2026 - 2027", "2025 - 2026"), defaulting to "2026 - 2027".
  */
 export function extractAcademicYearId(formHtml: string, preferred = "2026 - 2027"): string {
   const selectMatch = formHtml.match(/name=["']DynamicModel\[academicyear\]["'][\s\S]*?<\/select>/i);
@@ -631,23 +717,36 @@ export function extractAcademicYearId(formHtml: string, preferred = "2026 - 2027
     }
   }
 
-  // 1. Look for option where label or value contains 2026 and 2027
-  const exact = options.find(
+  // 1. Look for option where label or value contains the target year pair
+  const years = preferred.match(/\d{4}/g) ?? [];
+  if (years.length >= 2) {
+    const y1 = years[0]!;
+    const y2 = years[1]!;
+    const exact = options.find(
+      (o) =>
+        (o.label.includes(y1) && o.label.includes(y2)) ||
+        (o.value.includes(y1) && o.value.includes(y2)),
+    );
+    if (exact) {
+      console.log(`[ERP] Selected Academic Year (${preferred}): "${exact.label}" (value=${exact.value})`);
+      return exact.value;
+    }
+  } else if (years.length === 1) {
+    const y = years[0]!;
+    const partial = options.find((o) => o.label.includes(y) || o.value.includes(y));
+    if (partial) {
+      console.log(`[ERP] Selected Academic Year (${y}): "${partial.label}" (value=${partial.value})`);
+      return partial.value;
+    }
+  }
+
+  // 2. Default to 2026 - 2027 if preferred not found
+  const default2026 = options.find(
     (o) =>
       (o.label.includes("2026") && o.label.includes("2027")) ||
       (o.value.includes("2026") && o.value.includes("2027")),
   );
-  if (exact) {
-    console.log(`[ERP] Selected Academic Year: "${exact.label}" (value=${exact.value})`);
-    return exact.value;
-  }
-
-  // 2. Look for option containing 2026
-  const partial2026 = options.find((o) => o.label.includes("2026") || o.value.includes("2026"));
-  if (partial2026) {
-    console.log(`[ERP] Selected Academic Year (2026): "${partial2026.label}" (value=${partial2026.value})`);
-    return partial2026.value;
-  }
+  if (default2026) return default2026.value;
 
   // 3. Fallback to first non-empty option
   const fallback = options[0]?.value ?? "";
@@ -657,11 +756,12 @@ export function extractAcademicYearId(formHtml: string, preferred = "2026 - 2027
 
 /**
  * Extract semester ID from form HTML.
- * Targets "Odd Sem" (Semester 1).
+ * Targets requested semester ("odd" / "even"), defaulting to "odd".
  */
 export function extractSemesterId(formHtml: string, preferred = "odd"): string {
+  const isEven = /even|sem\s*2|^2$/i.test(preferred);
   const selectMatch = formHtml.match(/name=["']DynamicModel\[semesterid\]["'][\s\S]*?<\/select>/i);
-  if (!selectMatch) return "1"; // Default Odd Sem in KL ERP
+  if (!selectMatch) return isEven ? "2" : "1";
   const selectContent = selectMatch[0];
 
   const optionRegex = /<option\s+value="([^"]*)"[^>]*>([\s\S]*?)<\/option>/gi;
@@ -675,13 +775,17 @@ export function extractSemesterId(formHtml: string, preferred = "odd"): string {
     }
   }
 
-  const odd = options.find((o) => /odd|sem\s*1|^1$/i.test(o.label) || o.value === "1");
-  if (odd) {
-    console.log(`[ERP] Selected Semester: "${odd.label}" (value=${odd.value})`);
-    return odd.value;
+  const matched = options.find((o) =>
+    isEven
+      ? /even|sem\s*2|^2$/i.test(o.label) || o.value === "2"
+      : /odd|sem\s*1|^1$/i.test(o.label) || o.value === "1",
+  );
+  if (matched) {
+    console.log(`[ERP] Selected Semester (${preferred}): "${matched.label}" (value=${matched.value})`);
+    return matched.value;
   }
 
-  return options[0]?.value ?? "1";
+  return options[0]?.value ?? (isEven ? "2" : "1");
 }
 
 /**

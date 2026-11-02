@@ -15,6 +15,7 @@ import { Route as ApiPublicGetAttendanceRouteImport } from './routes/api/public/
 import { Route as ApiPublicLoginErpRouteImport } from './routes/api/public/login-erp'
 import { Route as ApiPublicNotifyPeriodRouteImport } from './routes/api/public/notify-period'
 import { Route as ApiPublicPollAttendanceRouteImport } from './routes/api/public/poll-attendance'
+import { Route as ApiPublicSendPresentStatusRouteImport } from './routes/api/public/send-present-status'
 import { Route as ApiPublicSetupWebhookRouteImport } from './routes/api/public/setup-webhook'
 import { Route as ApiPublicStartLoginRouteImport } from './routes/api/public/start-login'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram-webhook'
@@ -50,6 +51,12 @@ const ApiPublicPollAttendanceRoute = ApiPublicPollAttendanceRouteImport.update({
   path: '/api/public/poll-attendance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSendPresentStatusRoute =
+  ApiPublicSendPresentStatusRouteImport.update({
+    id: '/api/public/send-present-status',
+    path: '/api/public/send-present-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSetupWebhookRoute = ApiPublicSetupWebhookRouteImport.update({
   id: '/api/public/setup-webhook',
   path: '/api/public/setup-webhook',
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/api/public/login-erp': typeof ApiPublicLoginErpRoute
   '/api/public/notify-period': typeof ApiPublicNotifyPeriodRoute
   '/api/public/poll-attendance': typeof ApiPublicPollAttendanceRoute
+  '/api/public/send-present-status': typeof ApiPublicSendPresentStatusRoute
   '/api/public/setup-webhook': typeof ApiPublicSetupWebhookRoute
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
@@ -91,6 +99,7 @@ export interface FileRoutesByTo {
   '/api/public/login-erp': typeof ApiPublicLoginErpRoute
   '/api/public/notify-period': typeof ApiPublicNotifyPeriodRoute
   '/api/public/poll-attendance': typeof ApiPublicPollAttendanceRoute
+  '/api/public/send-present-status': typeof ApiPublicSendPresentStatusRoute
   '/api/public/setup-webhook': typeof ApiPublicSetupWebhookRoute
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
@@ -104,6 +113,7 @@ export interface FileRoutesById {
   '/api/public/login-erp': typeof ApiPublicLoginErpRoute
   '/api/public/notify-period': typeof ApiPublicNotifyPeriodRoute
   '/api/public/poll-attendance': typeof ApiPublicPollAttendanceRoute
+  '/api/public/send-present-status': typeof ApiPublicSendPresentStatusRoute
   '/api/public/setup-webhook': typeof ApiPublicSetupWebhookRoute
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/api/public/login-erp'
     | '/api/public/notify-period'
     | '/api/public/poll-attendance'
+    | '/api/public/send-present-status'
     | '/api/public/setup-webhook'
     | '/api/public/start-login'
     | '/api/public/telegram-webhook'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/api/public/login-erp'
     | '/api/public/notify-period'
     | '/api/public/poll-attendance'
+    | '/api/public/send-present-status'
     | '/api/public/setup-webhook'
     | '/api/public/start-login'
     | '/api/public/telegram-webhook'
@@ -142,6 +154,7 @@ export interface FileRouteTypes {
     | '/api/public/login-erp'
     | '/api/public/notify-period'
     | '/api/public/poll-attendance'
+    | '/api/public/send-present-status'
     | '/api/public/setup-webhook'
     | '/api/public/start-login'
     | '/api/public/telegram-webhook'
@@ -155,6 +168,7 @@ export interface RootRouteChildren {
   ApiPublicLoginErpRoute: typeof ApiPublicLoginErpRoute
   ApiPublicNotifyPeriodRoute: typeof ApiPublicNotifyPeriodRoute
   ApiPublicPollAttendanceRoute: typeof ApiPublicPollAttendanceRoute
+  ApiPublicSendPresentStatusRoute: typeof ApiPublicSendPresentStatusRoute
   ApiPublicSetupWebhookRoute: typeof ApiPublicSetupWebhookRoute
   ApiPublicStartLoginRoute: typeof ApiPublicStartLoginRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
@@ -205,6 +219,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPollAttendanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/send-present-status': {
+      id: '/api/public/send-present-status'
+      path: '/api/public/send-present-status'
+      fullPath: '/api/public/send-present-status'
+      preLoaderRoute: typeof ApiPublicSendPresentStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/setup-webhook': {
       id: '/api/public/setup-webhook'
       path: '/api/public/setup-webhook'
@@ -243,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLoginErpRoute: ApiPublicLoginErpRoute,
   ApiPublicNotifyPeriodRoute: ApiPublicNotifyPeriodRoute,
   ApiPublicPollAttendanceRoute: ApiPublicPollAttendanceRoute,
+  ApiPublicSendPresentStatusRoute: ApiPublicSendPresentStatusRoute,
   ApiPublicSetupWebhookRoute: ApiPublicSetupWebhookRoute,
   ApiPublicStartLoginRoute: ApiPublicStartLoginRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,

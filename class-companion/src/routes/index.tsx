@@ -1,10 +1,11 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { WeeklyTimetable } from "@/components/WeeklyTimetable";
 import { SyncToggle } from "@/components/SyncToggle";
 import { AttendanceOverview } from "@/components/AttendanceOverview";
 import { AttendanceLogList } from "@/components/AttendanceLogList";
 import { BunkCalculator } from "@/components/BunkCalculator";
-import { ErpLoginCard } from "@/components/ErpLoginCard";
+import { SemesterFilterBar, SEMESTER_OPTIONS } from "@/components/SemesterFilterBar";
 
 import { useAttendanceData, type Snapshot } from "@/hooks/useAttendanceData";
 import { useSyncSetting } from "@/hooks/useSyncSetting";
@@ -122,8 +123,9 @@ function SubjectCard({ row }: { row: Snapshot }) {
 }
 
 function Dashboard() {
+  const [selectedSemester, setSelectedSemester] = useState("2026-2027_odd");
   const { enabled, isPending, setEnabled } = useSyncSetting();
-  const { snapshots, history } = useAttendanceData(enabled);
+  const { snapshots, history } = useAttendanceData(enabled, selectedSemester);
   const rows = snapshots.data ?? [];
 
   const conducted = rows.reduce((sum, r) => sum + r.total_conducted, 0);
@@ -137,6 +139,9 @@ function Dashboard() {
       )
     : null;
 
+  const currentOption =
+    SEMESTER_OPTIONS.find((s) => s.key === selectedSemester) ?? SEMESTER_OPTIONS[0]!;
+
   return (
     <>
       <div className="h-[3px] w-full bg-primary" />
@@ -149,14 +154,17 @@ function Dashboard() {
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p className="label-caps">KL University</p>
               <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                Year 2026 – 2027 · Odd Sem
+                Year {currentOption.label.replace(" (Current)", "")}
               </span>
             </div>
           </div>
           <SyncToggle enabled={enabled} isPending={isPending} onChange={setEnabled} />
         </header>
 
-        <ErpLoginCard />
+        <SemesterFilterBar
+          selectedSemester={selectedSemester}
+          onSemesterChange={setSelectedSemester}
+        />
 
         <OverallHero
           value={overall}

@@ -23,24 +23,15 @@ export type HistoryEntry = {
   created_at: string;
 };
 
-export function useAttendanceData(enabled = true) {
+export function useAttendanceData(enabled = true, semesterKey = "2026-2027_odd") {
   const queryClient = useQueryClient();
 
   const snapshots = useQuery({
-    queryKey: ["attendance_snapshot"],
+    queryKey: ["attendance_snapshot", semesterKey],
     queryFn: async (): Promise<Snapshot[]> => {
+      // First try fetching from backend with semesterKey filter
       try {
-        const { data, error } = await supabase
-          .from("attendance_snapshot")
-          .select("*")
-          .order("coursecode");
-        if (!error && data && data.length > 0) {
-          return data as Snapshot[];
-        }
-      } catch {}
-
-      try {
-        const res = await fetch("/api/public/get-attendance");
+        const res = await fetch(`/api/public/get-attendance?semesterKey=${encodeURIComponent(semesterKey)}`);
         if (res.ok) {
           const json = await res.json();
           if (json.snapshots && json.snapshots.length > 0) {
@@ -49,32 +40,33 @@ export function useAttendanceData(enabled = true) {
         }
       } catch {}
 
+      // Fallback to Supabase if default semester
+      if (semesterKey === "2026-2027_odd") {
+        try {
+          const { data, error } = await supabase
+            .from("attendance_snapshot")
+            .select("*")
+            .order("coursecode");
+          if (!error && data && data.length > 0) {
+            return data as Snapshot[];
+          }
+        } catch {}
+      }
+
       return [];
     },
     enabled: true,
     refetchOnWindowFocus: enabled,
-    // Poll every 30s while the tab is visible; TanStack pauses when hidden.
     refetchInterval: enabled ? 30_000 : false,
     refetchIntervalInBackground: false,
     staleTime: enabled ? 0 : 60_000,
   });
 
   const history = useQuery({
-    queryKey: ["attendance_history"],
+    queryKey: ["attendance_history", semesterKey],
     queryFn: async (): Promise<HistoryEntry[]> => {
       try {
-        const { data, error } = await supabase
-          .from("attendance_history")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(100);
-        if (!error && data && data.length > 0) {
-          return data as HistoryEntry[];
-        }
-      } catch {}
-
-      try {
-        const res = await fetch("/api/public/get-attendance");
+        const res = await fetch(`/api/public/get-attendance?semesterKey=${encodeURIComponent(semesterKey)}`);
         if (res.ok) {
           const json = await res.json();
           if (json.history && json.history.length > 0) {
@@ -82,6 +74,19 @@ export function useAttendanceData(enabled = true) {
           }
         }
       } catch {}
+
+      if (semesterKey === "2026-2027_odd") {
+        try {
+          const { data, error } = await supabase
+            .from("attendance_history")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(100);
+          if (!error && data && data.length > 0) {
+            return data as HistoryEntry[];
+          }
+        } catch {}
+      }
 
       return [];
     },
@@ -91,7 +96,7 @@ export function useAttendanceData(enabled = true) {
   });
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || semesterKey !== "2026-2027_odd") return;
     const channel = supabase
       .channel("attendance-live")
       .on(
@@ -109,8 +114,7 @@ export function useAttendanceData(enabled = true) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [queryClient, enabled]);
+  }, [queryClient, enabled, semesterKey]);
 
   return { snapshots, history };
 }
-
