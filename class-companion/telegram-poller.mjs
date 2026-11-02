@@ -483,13 +483,13 @@ async function submitErpLogin(captchaText) {
     await telegramSend(
       `✅ <b>Logged in to KL ERP (2026 - 2027 Odd Sem)</b>\n` +
       `👤 Roll Number: <code>${ERP_USERNAME}</code>\n` +
-      `⚡ <b>Real-Time Present Notification is ACTIVE!</b>\n` +
+      `⚡ <b>Real-Time Monitoring Active</b> (Checks ERP every 5 min)\n` +
       `You will receive an instant alert as soon as your attendance is marked present in class.\n\n` +
-      `💡 <i>Tip: Send <code>/present</code> anytime to view your latest present status.</i>`
+      `💡 <i>Tip: Send <code>/next</code> to check your next class room & period.</i>`
     );
 
-    // Trigger initial attendance register sync in background
-    checkAttendance(true).catch(console.error);
+    // Trigger initial attendance register sync in background (without sending unsolicited overall summary)
+    checkAttendance(false).catch(console.error);
   } catch (err) {
     console.error("[ERP] submitErpLogin error:", err.message);
     await telegramSend(`⚠️ Login encounter: ${err.message}. Retrying...`);
@@ -696,21 +696,10 @@ async function checkAttendance(isInitialAfterLogin = false) {
       writeHistory([...newHistoryEntries, ...readHistory()]);
     }
 
-    // Send login summary message if this check was triggered right after a successful login
-    if (isInitialAfterLogin) {
-      const conducted = rows.reduce((s, r) => s + r.total_conducted, 0);
-      const attended = rows.reduce((s, r) => s + r.total_attended, 0);
-      const overallPct = conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0";
-      await telegramSend(
-        `📊 <b>Attendance Register Loaded:</b>\n` +
-        `• Overall Attendance: <b>${overallPct}%</b> (${attended}/${conducted} classes)\n` +
-        `• Tracked Courses: <b>${rows.length} components</b> (L/T/P/S)`
-      );
-    } else {
-      console.log(`[ERP] [${timeStr} IST] Check complete. ${rows.length} components checked. Any changes: ${hasPresentChanges || newHistoryEntries.length > 0}`);
-    }
+    // Overall attendance is ONLY sent on Sundays (or on /weekly command) as requested by user
+    console.log(`[ERP] [${timeStr} IST] Check complete. ${rows.length} components checked. Any changes: ${hasPresentChanges || newHistoryEntries.length > 0}`);
 
-    // Push snapshot update to production Vercel cloud app so website reflects live numbers
+    // Push snapshot update to production Vercel cloud app so website reflects live numbers and stays awake
     try {
       fetch(`${PROD_URL}/api/public/sync-snapshot`, {
         method: "POST",
@@ -720,6 +709,7 @@ async function checkAttendance(isInitialAfterLogin = false) {
         },
         body: JSON.stringify({ snapshots: rows, history: readHistory().slice(0, 50) }),
       }).catch(() => {});
+      fetch(`${PROD_URL}/`).catch(() => {});
     } catch {}
 
   } catch (err) {
@@ -890,6 +880,54 @@ async function pollTelegramUpdates() {
           continue;
         }
 
+        // Handle /next or /class or /room command
+        if (/^(\/)?(next|class|room|where|timetable)/i.test(text)) {
+          const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+          const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+          const dayName = dayNames[istDate.getUTCDay()];
+          if (dayName === "Sun") {
+            await telegramSend("🏖️ It's Sunday! No classes today.");
+            continue;
+          }
+          const hours = istDate.getUTCHours();
+          const minutes = istDate.getUTCMinutes();
+          const currentTotalMins = hours * 60 + minutes;
+          const daySchedule = TIMETABLE[dayName] || {};
+
+          let currentSlot = null;
+          let nextSlot = null;
+          let minsUntilNext = 0;
+
+          for (const period of PERIODS) {
+            const slot = daySchedule[period.key];
+            if (!slot) continue;
+            if (currentTotalMins >= period.start && currentTotalMins < period.end) {
+              currentSlot = { period, slot };
+            } else if (currentTotalMins < period.start && !nextSlot) {
+              nextSlot = { period, slot };
+              minsUntilNext = period.start - currentTotalMins;
+            }
+          }
+
+          if (nextSlot) {
+            const venueInfo = nextSlot.slot.venue ? ` (${nextSlot.slot.venue})` : "";
+            const timeDesc = minsUntilNext <= 10 ? `starting in ${minsUntilNext} mins` : `at ${Math.floor(nextSlot.period.start / 60)}:${String(nextSlot.period.start % 60).padStart(2, "0")}`;
+            await telegramSend(
+              `📚 <b>Next Class Today (${dayName}):</b>\n` +
+              `Period ${nextSlot.period.num} ${timeDesc}: ${nextSlot.slot.coursecode} · ${nextSlot.slot.section} · Room ${nextSlot.slot.room}${venueInfo}`
+            );
+          } else if (currentSlot) {
+            const venueInfo = currentSlot.slot.venue ? ` (${currentSlot.slot.venue})` : "";
+            await telegramSend(
+              `📚 <b>Current Class:</b> Period ${currentSlot.period.num}: ${currentSlot.slot.coursecode} · ${currentSlot.slot.section} · Room ${currentSlot.slot.room}${venueInfo}\n\n` +
+              `🎉 No more classes scheduled after this today!`
+            );
+          } else {
+            await telegramSend(`🎉 All classes for today (${dayName}) are finished!`);
+          }
+          continue;
+        }
+
         // Handle /login command
         if (/^(\/)?login/i.test(text)) {
           await telegramSend("🔄 Fetching fresh ERP login CAPTCHA...");
@@ -920,14 +958,140 @@ async function pollTelegramUpdates() {
   setImmediate(pollTelegramUpdates);
 }
 
+/* ---------------- Class Timetable & 10-Minute Next Class Reminders ---------------- */
+
+const CAD = "CAD Centre";
+const CC = "Computer Centre";
+
+const TIMETABLE = {
+  Mon: {
+    P1: { coursecode: "24CS3207-L", section: "S-4", room: "K-408" },
+    P2: { coursecode: "24CS3207-L", section: "S-4", room: "K-408" },
+    P3: { coursecode: "24CS3105-L", section: "S-4", room: "K-407" },
+    P4: { coursecode: "24CS3105-T", section: "S-4", room: "K-407" },
+    P5: { coursecode: "24DEA3101-L", section: "S-4", room: "K-313" },
+    P7: { coursecode: "24CI3201-P", section: "S-14", room: "K-313" },
+    P8: { coursecode: "24CI3201-P", section: "S-14", room: "K-313" },
+    P9: { coursecode: "24CI3201-P", section: "S-14", room: "K-313" },
+  },
+  Tue: {
+    P1: { coursecode: "24CS3105-L", section: "S-4", room: "K-306" },
+    P2: { coursecode: "24CS3105-L", section: "S-4", room: "K-306" },
+    P3: { coursecode: "24CS3207-P", section: "S-4", room: "K-414" },
+    P4: { coursecode: "24CS3207-P", section: "S-4", room: "K-414" },
+    P5: { coursecode: "24SDCS03-L", section: "S-6", room: "K-407" },
+    P7: { coursecode: "24DEA3101-P", section: "S-4", room: "K-413" },
+    P8: { coursecode: "24DEA3101-P", section: "S-4", room: "K-413" },
+    P9: { coursecode: "24DEA3101-P", section: "S-4", room: "K-413" },
+  },
+  Wed: {
+    P1: { coursecode: "24CC3014-S", section: "S-4", room: "K-204", venue: CAD },
+    P2: { coursecode: "24SDCS03-L", section: "S-6", room: "K-204", venue: CAD },
+    P3: { coursecode: "24CI3201-L", section: "S-14", room: "K-004", venue: CC },
+    P4: { coursecode: "24CI3201-L", section: "S-14", room: "K-004", venue: CC },
+    P5: { coursecode: "24CS3207-L", section: "S-4", room: "K-004", venue: CC },
+    P7: { coursecode: "24CS3207-L", section: "S-4", room: "K-004", venue: CC },
+    P8: { coursecode: "24CS3105-T", section: "S-4", room: "K-204", venue: CAD },
+    P10: { coursecode: "24CC3014-S", section: "S-4", room: "K-204", venue: CAD },
+  },
+  Thu: {
+    P1: { coursecode: "24CC3014-S", section: "S-4", room: "K-204", venue: CAD },
+    P2: { coursecode: "24CS3105-L", section: "S-4", room: "K-204", venue: CAD },
+    P3: { coursecode: "24DEA3101-L", section: "S-4", room: "K-004", venue: CC },
+    P4: { coursecode: "24DEA3101-L", section: "S-4", room: "K-004", venue: CC },
+    P5: { coursecode: "24CS2235F-L", section: "S-6", room: "K-004", venue: CC },
+    P7: { coursecode: "24CS2235F-L", section: "S-6", room: "K-004", venue: CC },
+    P8: { coursecode: "24CS3105-T", section: "S-4", room: "K-204", venue: CAD },
+    P11: { coursecode: "24CC3014-S", section: "S-4", room: "K-204", venue: CAD },
+  },
+  Fri: {
+    P1: { coursecode: "24SDCS03-S", section: "S-6", room: "K-008" },
+    P2: { coursecode: "24SDCS03-S", section: "S-6", room: "K-008" },
+    P3: { coursecode: "24DEA3101-L", section: "S-4", room: "K-114" },
+    P4: { coursecode: "24DEA3101-L", section: "S-4", room: "K-114" },
+    P5: { coursecode: "24CI3201-L", section: "S-14", room: "K-413" },
+    P7: { coursecode: "24CS2235F-P", section: "S-6", room: "K-414" },
+    P8: { coursecode: "24CS2235F-P", section: "S-6", room: "K-414" },
+    P9: { coursecode: "24CS2235F-P", section: "S-6", room: "K-414" },
+  },
+  Sat: {
+    P1: { coursecode: "24CI3201-L", section: "S-14", room: "K-314" },
+    P2: { coursecode: "24CI3201-L", section: "S-14", room: "K-314" },
+    P3: { coursecode: "24CS2235F-L", section: "S-6", room: "K-413" },
+    P4: { coursecode: "24CS2235F-L", section: "S-6", room: "K-413" },
+    P5: { coursecode: "24CS3207-L", section: "S-4", room: "K-408" },
+    P7: { coursecode: "24SDCS03-S", section: "S-6", room: "K-008" },
+    P8: { coursecode: "24SDCS03-S", section: "S-6", room: "K-008" },
+    P9: { coursecode: "24SDCS03-S", section: "S-6", room: "K-008" },
+  },
+};
+
+const PERIODS = [
+  { key: "P1", num: "1", start: 8 * 60 + 10, end: 9 * 60 + 0 },
+  { key: "P2", num: "2", start: 9 * 60 + 0, end: 9 * 60 + 50 },
+  { key: "P3", num: "3", start: 10 * 60 + 0, end: 10 * 60 + 50 },
+  { key: "P4", num: "4", start: 10 * 60 + 50, end: 11 * 60 + 40 },
+  { key: "P5", num: "5", start: 11 * 60 + 50, end: 12 * 60 + 40 },
+  { key: "P7", num: "7", start: 13 * 60 + 20, end: 14 * 60 + 10 },
+  { key: "P8", num: "8", start: 14 * 60 + 10, end: 15 * 60 + 0 },
+  { key: "P9", num: "9", start: 15 * 60 + 0, end: 15 * 60 + 50 },
+  { key: "P10", num: "10", start: 15 * 60 + 50, end: 16 * 60 + 40 },
+  { key: "P11", num: "11", start: 16 * 60 + 40, end: 17 * 60 + 30 },
+];
+
+const sentTimetableAlerts = new Set();
+
+function checkTimetableReminders() {
+  const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayName = dayNames[istDate.getUTCDay()];
+  if (dayName === "Sun") return;
+
+  const hours = istDate.getUTCHours();
+  const minutes = istDate.getUTCMinutes();
+  const currentTotalMins = hours * 60 + minutes;
+  const todayStr = istDate.toISOString().slice(0, 10);
+  const daySchedule = TIMETABLE[dayName];
+  if (!daySchedule) return;
+
+  for (const period of PERIODS) {
+    const slot = daySchedule[period.key];
+    if (!slot) continue;
+
+    // 10-Minute Reminder Window (fires between 10 to 1 minutes before period starts)
+    const alert10mKey = `10m_${todayStr}_${period.key}`;
+    if (currentTotalMins >= period.start - 10 && currentTotalMins < period.start) {
+      if (!sentTimetableAlerts.has(alert10mKey)) {
+        sentTimetableAlerts.add(alert10mKey);
+        const venueInfo = slot.venue ? ` (${slot.venue})` : "";
+        const msg = `📚 Period ${period.num} starting in 10 mins: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`;
+        console.log(`[Timetable Reminder] ${msg}`);
+        telegramSend(msg).catch(console.error);
+      }
+    }
+
+    // At Start Reminder Window (matches Reference Screenshot 3 format)
+    const alertNowKey = `now_${todayStr}_${period.key}`;
+    if (currentTotalMins >= period.start && currentTotalMins < period.start + 3) {
+      if (!sentTimetableAlerts.has(alertNowKey)) {
+        sentTimetableAlerts.add(alertNowKey);
+        const venueInfo = slot.venue ? ` (${slot.venue})` : "";
+        const msg = `📚 Period ${period.num} starting now: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`;
+        console.log(`[Timetable Reminder] ${msg}`);
+        telegramSend(msg).catch(console.error);
+      }
+    }
+  }
+}
+
 /* ---------------- Dynamic Poll Scheduler with Guaranteed Continuation ---------------- */
 
 async function scheduleAttendanceRunner() {
   const { hours, isSunday } = getIstTime();
-  // College hours: Mon-Sat 8:00 AM to 5:30 PM IST (checks every 60s)
-  // Outside college hours: checks every 3 minutes
+  // College hours: Mon-Sat 8:00 AM to 5:30 PM IST (checks ERP every 5 min as requested)
+  // Outside college hours: checks every 10 minutes
   const isCollegeHours = !isSunday && hours >= 8 && hours < 18;
-  const intervalMs = isCollegeHours ? 60 * 1000 : 3 * 60 * 1000;
+  const intervalMs = isCollegeHours ? 5 * 60 * 1000 : 10 * 60 * 1000;
 
   try {
     await checkAttendance(false);
@@ -965,7 +1129,8 @@ async function startDaemon() {
   console.log(`Target Session:  Academic Year 2026 - 2027 (Odd Sem)`);
   console.log(`Telegram Bot:    ${BOT_TOKEN.slice(0, 10)}...`);
   console.log(`Telegram Chat:   ${CHAT_ID}`);
-  console.log(`College Hours:   Every 60 seconds (Mon-Sat 8:00 - 17:30 IST)`);
+  console.log(`College Hours:   Every 5 minutes (Mon-Sat 8:00 - 17:30 IST)`);
+  console.log(`Next Class:      Reminders 10 mins before class starts`);
   console.log(`Sunday Schedule: Every Sunday 9:00 AM IST`);
   console.log("==================================================");
 
@@ -984,13 +1149,16 @@ async function startDaemon() {
   // 3. Start Telegram update listener
   pollTelegramUpdates();
 
-  // 4. Start attendance polling loop
+  // 4. Start attendance polling loop (checks every 5 min)
   setTimeout(scheduleAttendanceRunner, 3000);
 
   // 5. Keep-alive ping every 2 minutes so session NEVER expires
   setInterval(keepSessionAlive, 2 * 60 * 1000);
 
-  // 6. Start Sunday morning weekly report scheduler (checks every 30s)
+  // 6. Timetable next-class reminder scheduler (checks every 30s)
+  setInterval(checkTimetableReminders, 30 * 1000);
+
+  // 7. Start Sunday morning weekly report scheduler (checks every 30s)
   setInterval(checkSundayWeeklySchedule, 30 * 1000);
 }
 
