@@ -22,3 +22,4 @@ node telegram-poller.mjs
 ```
 
 See [class-companion/README.md](class-companion/README.md) for full configuration and documentation.
+
