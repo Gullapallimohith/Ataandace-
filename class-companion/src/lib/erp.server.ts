@@ -468,7 +468,9 @@ export function formatWeeklyReport(rows: AttendanceRow[]): string {
     lines.push(`${icon} ${c.name.toUpperCase()}\n${c.weighted.toFixed(1)}% · ${c.attended}/${c.conducted}\n`);
   }
 
-  const overallPct = overallConducted > 0 ? (overallAttended / overallConducted) * 100 : 0;
+  const overallPct = courses.length > 0
+    ? courses.reduce((s, c) => s + c.weighted, 0) / courses.length
+    : (overallConducted > 0 ? (overallAttended / overallConducted) * 100 : 0);
   lines.push(`Overall: ${overallPct.toFixed(1)}% (${overallAttended}/${overallConducted}) · Target 85%`);
 
   return lines.join("\n");

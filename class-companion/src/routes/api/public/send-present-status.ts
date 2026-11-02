@@ -30,7 +30,26 @@ async function deliverPresentReport() {
   const conducted = (snapshots ?? []).reduce((s, r) => s + (r.total_conducted || 0), 0);
   const attended = (snapshots ?? []).reduce((s, r) => s + (r.total_attended || 0), 0);
   const absent = Math.max(conducted - attended, 0);
-  const pctVal = conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0";
+
+  const WEIGHTS: Record<string, number> = { L: 1, P: 0.5, T: 0.25, S: 0.25 };
+  const byCourse = new Map<string, any[]>();
+  for (const row of (snapshots ?? [])) {
+    const list = byCourse.get(row.coursecode) ?? [];
+    list.push(row);
+    byCourse.set(row.coursecode, list);
+  }
+  const courseWeightedList: number[] = [];
+  for (const [_, list] of byCourse) {
+    const comps = list.filter((r) => WEIGHTS[(r.ltps || "").trim().toUpperCase().slice(0, 1)] && r.total_conducted);
+    const wSum = comps.reduce((s, r) => s + (WEIGHTS[(r.ltps || "").trim().toUpperCase().slice(0, 1)] || 0), 0);
+    const weighted = wSum
+      ? comps.reduce((s, r) => s + ((r.total_attended / r.total_conducted) * 100) * (WEIGHTS[(r.ltps || "").trim().toUpperCase().slice(0, 1)] || 0), 0) / wSum
+      : 0;
+    courseWeightedList.push(weighted);
+  }
+  const pctVal = courseWeightedList.length > 0
+    ? (courseWeightedList.reduce((s, v) => s + v, 0) / courseWeightedList.length).toFixed(1)
+    : (conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0");
 
   // Filter present records
   const presentEntries = (history ?? []).filter((h) => h.status === "present");

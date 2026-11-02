@@ -18,7 +18,7 @@ type Component = {
   attended: number;
 };
 
-type Course = {
+export type Course = {
   coursecode: string;
   coursedesc: string;
   components: Component[];

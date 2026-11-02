@@ -2,12 +2,12 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { WeeklyTimetable } from "@/components/WeeklyTimetable";
 import { SyncToggle } from "@/components/SyncToggle";
-import { AttendanceOverview } from "@/components/AttendanceOverview";
+import { AttendanceOverview, buildCourses, type Course } from "@/components/AttendanceOverview";
 import { AttendanceLogList } from "@/components/AttendanceLogList";
 import { BunkCalculator } from "@/components/BunkCalculator";
 import { SemesterFilterBar, SEMESTER_OPTIONS } from "@/components/SemesterFilterBar";
 
-import { useAttendanceData, type Snapshot } from "@/hooks/useAttendanceData";
+import { useAttendanceData } from "@/hooks/useAttendanceData";
 import { useSyncSetting } from "@/hooks/useSyncSetting";
 
 export const Route = createFileRoute("/")({
@@ -92,30 +92,37 @@ function OverallHero({
   );
 }
 
-function SubjectCard({ row }: { row: Snapshot }) {
-  const value = pct(row.total_attended, row.total_conducted);
-  const low = value < LOW;
+function SubjectCard({ course }: { course: Course }) {
+  const low = course.weighted < LOW;
+  const attended = course.components.reduce((s, c) => s + c.attended, 0);
+  const conducted = course.components.reduce((s, c) => s + c.conducted, 0);
 
   return (
     <article className="bento p-5">
-      <p className="label-caps truncate">
-        {row.coursecode}
-        {row.ltps ? `-${row.ltps}` : ""}
-      </p>
+      <div className="flex items-center justify-between gap-1">
+        <p className="label-caps truncate font-bold text-foreground">
+          {course.coursecode}
+        </p>
+        {course.components.length > 0 && (
+          <span className="num shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+            {course.components.map((c) => c.code).join("·")}
+          </span>
+        )}
+      </div>
       <p className={`stat-big mt-2 text-3xl ${low ? "text-destructive" : ""}`}>
-        {value.toFixed(1)}
+        {course.weighted.toFixed(1)}
         <span className="ml-0.5 align-top text-base">%</span>
       </p>
-      <p className="mt-3 truncate text-xs text-muted-foreground">
-        {row.coursedesc || row.section}
+      <p className="mt-3 truncate text-xs text-muted-foreground" title={course.coursedesc}>
+        {course.coursedesc || "—"}
       </p>
       <p className="num mt-1 text-xs text-muted-foreground">
-        {row.total_attended} / {row.total_conducted}
+        {attended} / {conducted}
       </p>
       <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
         <div
-          className="h-full rounded-full bg-primary transition-[width] duration-700"
-          style={{ width: `${Math.min(value, 100)}%` }}
+          className={`h-full rounded-full transition-[width] duration-700 ${low ? "bg-destructive" : "bg-primary"}`}
+          style={{ width: `${Math.min(course.weighted, 100)}%` }}
         />
       </div>
     </article>
@@ -131,7 +138,12 @@ function Dashboard() {
   const conducted = rows.reduce((sum, r) => sum + r.total_conducted, 0);
   const attended = rows.reduce((sum, r) => sum + r.total_attended, 0);
   const absent = Math.max(conducted - attended, 0);
-  const overall = pct(attended, conducted);
+
+  const courses = buildCourses(rows);
+  const overall = courses.length > 0
+    ? courses.reduce((sum, c) => sum + c.weighted, 0) / courses.length
+    : pct(attended, conducted);
+
   const lastSynced = enabled
     ? rows.reduce<string | null>(
       (latest, r) => (!latest || r.updated_at > latest ? r.updated_at : latest),
@@ -174,17 +186,22 @@ function Dashboard() {
         />
 
         <section>
-          <h2 className="label-caps mb-3">Per Subject</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="label-caps">Per Subject</h2>
+            <span className="text-xs text-muted-foreground">
+              {courses.length} subjects · LTPS Weighted
+            </span>
+          </div>
           {snapshots.isLoading ? (
             <p className="text-sm text-muted-foreground">Loading subjects…</p>
-          ) : rows.length === 0 ? (
+          ) : courses.length === 0 ? (
             <p className="bento p-6 text-sm text-muted-foreground">
               No attendance synced yet. Subjects appear here once the ERP session is active.
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {rows.map((row) => (
-                <SubjectCard key={`${row.coursecode}-${row.section}-${row.ltps}`} row={row} />
+              {courses.map((course) => (
+                <SubjectCard key={course.coursecode} course={course} />
               ))}
             </div>
           )}
