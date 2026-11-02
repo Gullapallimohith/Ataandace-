@@ -32,52 +32,51 @@ async function deliverPresentReport() {
   const absent = Math.max(conducted - attended, 0);
   const pctVal = conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0";
 
-  // Recent present marks
-  const recentPresent = (history ?? []).filter((h) => h.status === "present").slice(0, 5);
-  let presentList = "";
-  if (recentPresent.length > 0) {
-    presentList = recentPresent
-      .map(
-        (h) =>
-          `• <b>${h.coursedesc || h.coursecode}</b>: 🟢 <b>PRESENT</b> (${h.note || "Recorded"})`,
-      )
-      .join("\n");
-  } else {
-    presentList = "• All enrolled course components tracked.";
+  // Filter present records
+  const presentEntries = (history ?? []).filter((h) => h.status === "present");
+
+  // Send individual Present alerts for each class
+  if (presentEntries.length > 0) {
+    for (const p of presentEntries.slice(0, 5)) {
+      const matchCourse = (snapshots ?? []).find(
+        (s) => s.coursecode === p.coursecode && (!p.section || s.section === p.section),
+      );
+      const cAttended = matchCourse ? matchCourse.total_attended : p.total_attended ?? 0;
+      const cConducted = matchCourse ? matchCourse.total_conducted : p.total_conducted ?? 0;
+      const cPct = cConducted > 0 ? ((cAttended / cConducted) * 100).toFixed(1) : "";
+
+      const msg =
+        `✅ <b>MARKED PRESENT</b>\n` +
+        `📚 <b>${p.coursedesc || p.coursecode}</b>\n` +
+        `📌 Code: <code>${p.coursecode}</code> · Section: ${p.section || "S-1"}\n` +
+        (cPct ? `📊 Course Attendance: <b>${cAttended}/${cConducted} (${cPct}%)</b>\n` : "") +
+        `⏰ Details: ${p.note || "Recorded"}\n` +
+        `🗓️ Date: ${p.date}`;
+
+      await sendTelegram(msg);
+      await new Promise((r) => setTimeout(r, 300));
+    }
   }
 
-  // Course summaries
-  const topCourses = snapshots
-    .slice(0, 6)
-    .map((c) => {
-      const cPct =
-        c.total_conducted > 0
-          ? ((c.total_attended / c.total_conducted) * 100).toFixed(1)
-          : "0.0";
-      return `• <b>${c.coursedesc || c.coursecode}</b> (${c.ltps || "L"}): ${c.total_attended}/${c.total_conducted} (<b>${cPct}%</b>)`;
-    })
-    .join("\n");
+  // Summary message
+  const summaryMsg =
+    `📈 <b>OVERALL ATTENDANCE SUMMARY</b>\n` +
+    `🎯 <b>Academic Year 2026 – 2027 (Odd Sem)</b>\n` +
+    `👤 <b>Student: Mohith (2420030663)</b>\n\n` +
+    `• Overall Attendance: <b>${pctVal}%</b>\n` +
+    `• Attended: <b>${attended}</b> / Conducted: <b>${conducted}</b> (Absent: <b>${absent}</b>)\n` +
+    `• Status: ${Number(pctVal) >= 75 ? "✅ Safe (Above 75% Criteria)" : "⚠️ Needs Attention"}\n\n` +
+    `💡 <i>Auto-synced from Class Companion • KL ERP</i>`;
 
-  const message =
-    `📊 <b>KL University Attendance & Status Report</b>\n` +
-    `🎯 <b>Target: Academic Year 2026 – 2027 (Odd Sem)</b>\n\n` +
-    `📈 <b>Overall: ${pctVal}%</b> (${attended} Attended / ${conducted} Conducted)\n` +
-    `❌ Total Absent Hours: <b>${absent}</b>\n` +
-    `⚡ Status: ${Number(pctVal) >= 75 ? "✅ Safe (Above 75% threshold)" : "⚠️ Caution (< 75% threshold)"}\n\n` +
-    `🟢 <b>Recent Present Marks:</b>\n` +
-    `${presentList}\n\n` +
-    `📚 <b>Key Courses:</b>\n` +
-    `${topCourses}\n\n` +
-    `<i>Auto-synced from Class Companion • KL ERP</i>`;
+  const res = await sendTelegram(summaryMsg);
 
-  const res = await sendTelegram(message);
   return Response.json({
-    ok: res.ok,
-    error: res.error,
-    messageId: res.messageId,
+    ok: true,
+    sentCount: Math.min(presentEntries.length, 5),
     overall: pctVal,
     attended,
     conducted,
+    messageId: res.messageId,
   });
 }
 
@@ -89,4 +88,3 @@ export const Route = createFileRoute("/api/public/send-present-status")({
     },
   },
 });
-

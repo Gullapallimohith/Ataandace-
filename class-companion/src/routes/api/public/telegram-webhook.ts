@@ -45,8 +45,8 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
           return Response.json({ ok: true, command: "bunk", result });
         }
 
-        // Handle /attendance, /status, /present, /today, or /help command
-        if (/^\/(attendance|status|present|today|check|help)/i.test(trimmed)) {
+        // Handle /attendance, /status, /present, /today, or /help command (with or without leading slash)
+        if (/^(\/)?(attendance|status|present|today|check|help)/i.test(trimmed)) {
           const { getCachedSnapshots, getCachedHistory, isSupabaseConfigured } = await import("@/lib/erp.server");
           let rows = getCachedSnapshots();
           let hist = getCachedHistory();
@@ -63,7 +63,22 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
           const absent = Math.max(conducted - attended, 0);
           const pctVal = conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0";
 
-          const recentPresent = (hist ?? []).filter((h) => h.status === "present").slice(0, 4);
+          const recentPresent = (hist ?? []).filter((h) => h.status === "present").slice(0, 5);
+
+          // If specifically asked for "present", send each present class card
+          if (/present/i.test(trimmed) && recentPresent.length > 0) {
+            for (const item of recentPresent) {
+              await sendTelegram(
+                `✅ <b>MARKED PRESENT</b>\n` +
+                `📚 <b>${item.coursedesc || item.coursecode}</b>\n` +
+                `📌 Component: <code>${item.coursecode}</code> · ${item.section || "S-1"}\n` +
+                `⏰ Details: ${item.note || "Recorded"}\n` +
+                `🗓️ Date: ${item.date}`
+              );
+              await new Promise((r) => setTimeout(r, 250));
+            }
+          }
+
           let presentTxt = recentPresent.length > 0
             ? recentPresent.map((h) => `• <b>${h.coursedesc || h.coursecode}</b>: 🟢 <b>PRESENT</b>`).join("\n")
             : "• All tracked courses in sync.";
