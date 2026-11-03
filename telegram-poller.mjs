@@ -59,6 +59,39 @@ function resolveFile(filename) {
   return p3;
 }
 
+const PID_FILE = resolveFile(".poller.pid");
+function acquirePidLock() {
+  try {
+    if (fs.existsSync(PID_FILE)) {
+      const oldPid = parseInt(fs.readFileSync(PID_FILE, "utf-8").trim(), 10);
+      if (oldPid && !isNaN(oldPid) && oldPid !== process.pid) {
+        try {
+          process.kill(oldPid, 0);
+          console.log(`[Daemon] Existing daemon is already active under PID ${oldPid}. Exiting duplicate instance.`);
+          process.exit(0);
+        } catch {
+          // Stale lock
+        }
+      }
+    }
+    fs.writeFileSync(PID_FILE, String(process.pid), "utf-8");
+  } catch {}
+}
+function releasePidLock() {
+  try {
+    if (fs.existsSync(PID_FILE)) {
+      const storedPid = parseInt(fs.readFileSync(PID_FILE, "utf-8").trim(), 10);
+      if (storedPid === process.pid) {
+        fs.unlinkSync(PID_FILE);
+      }
+    }
+  } catch {}
+}
+acquirePidLock();
+process.on("exit", releasePidLock);
+process.on("SIGINT", () => { releasePidLock(); process.exit(0); });
+process.on("SIGTERM", () => { releasePidLock(); process.exit(0); });
+
 const SESSION_FILE = resolveFile(".erp-session.json");
 const SNAPSHOTS_FILE = resolveFile(".erp-attendance.json");
 const HISTORY_FILE = resolveFile(".erp-history.json");
