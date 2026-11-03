@@ -19,6 +19,7 @@ import { Route as ApiPublicSendPresentStatusRouteImport } from './routes/api/pub
 import { Route as ApiPublicSetupWebhookRouteImport } from './routes/api/public/setup-webhook'
 import { Route as ApiPublicStartLoginRouteImport } from './routes/api/public/start-login'
 import { Route as ApiPublicSyncSnapshotRouteImport } from './routes/api/public/sync-snapshot'
+import { Route as ApiPublicTelegramRelayRouteImport } from './routes/api/public/telegram-relay'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram-webhook'
 import { Route as ApiPublicTestTelegramRouteImport } from './routes/api/public/test-telegram'
 import { Route as ApiPublicWeeklyReportRouteImport } from './routes/api/public/weekly-report'
@@ -74,6 +75,11 @@ const ApiPublicSyncSnapshotRoute = ApiPublicSyncSnapshotRouteImport.update({
   path: '/api/public/sync-snapshot',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTelegramRelayRoute = ApiPublicTelegramRelayRouteImport.update({
+  id: '/api/public/telegram-relay',
+  path: '/api/public/telegram-relay',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTelegramWebhookRoute =
   ApiPublicTelegramWebhookRouteImport.update({
     id: '/api/public/telegram-webhook',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/api/public/setup-webhook': typeof ApiPublicSetupWebhookRoute
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/sync-snapshot': typeof ApiPublicSyncSnapshotRoute
+  '/api/public/telegram-relay': typeof ApiPublicTelegramRelayRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/test-telegram': typeof ApiPublicTestTelegramRoute
   '/api/public/weekly-report': typeof ApiPublicWeeklyReportRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/api/public/setup-webhook': typeof ApiPublicSetupWebhookRoute
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/sync-snapshot': typeof ApiPublicSyncSnapshotRoute
+  '/api/public/telegram-relay': typeof ApiPublicTelegramRelayRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/test-telegram': typeof ApiPublicTestTelegramRoute
   '/api/public/weekly-report': typeof ApiPublicWeeklyReportRoute
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/api/public/setup-webhook': typeof ApiPublicSetupWebhookRoute
   '/api/public/start-login': typeof ApiPublicStartLoginRoute
   '/api/public/sync-snapshot': typeof ApiPublicSyncSnapshotRoute
+  '/api/public/telegram-relay': typeof ApiPublicTelegramRelayRoute
   '/api/public/telegram-webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/test-telegram': typeof ApiPublicTestTelegramRoute
   '/api/public/weekly-report': typeof ApiPublicWeeklyReportRoute
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/api/public/setup-webhook'
     | '/api/public/start-login'
     | '/api/public/sync-snapshot'
+    | '/api/public/telegram-relay'
     | '/api/public/telegram-webhook'
     | '/api/public/test-telegram'
     | '/api/public/weekly-report'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/api/public/setup-webhook'
     | '/api/public/start-login'
     | '/api/public/sync-snapshot'
+    | '/api/public/telegram-relay'
     | '/api/public/telegram-webhook'
     | '/api/public/test-telegram'
     | '/api/public/weekly-report'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/api/public/setup-webhook'
     | '/api/public/start-login'
     | '/api/public/sync-snapshot'
+    | '/api/public/telegram-relay'
     | '/api/public/telegram-webhook'
     | '/api/public/test-telegram'
     | '/api/public/weekly-report'
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   ApiPublicSetupWebhookRoute: typeof ApiPublicSetupWebhookRoute
   ApiPublicStartLoginRoute: typeof ApiPublicStartLoginRoute
   ApiPublicSyncSnapshotRoute: typeof ApiPublicSyncSnapshotRoute
+  ApiPublicTelegramRelayRoute: typeof ApiPublicTelegramRelayRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicTestTelegramRoute: typeof ApiPublicTestTelegramRoute
   ApiPublicWeeklyReportRoute: typeof ApiPublicWeeklyReportRoute
@@ -273,6 +286,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSyncSnapshotRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/telegram-relay': {
+      id: '/api/public/telegram-relay'
+      path: '/api/public/telegram-relay'
+      fullPath: '/api/public/telegram-relay'
+      preLoaderRoute: typeof ApiPublicTelegramRelayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/telegram-webhook': {
       id: '/api/public/telegram-webhook'
       path: '/api/public/telegram-webhook'
@@ -308,6 +328,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSetupWebhookRoute: ApiPublicSetupWebhookRoute,
   ApiPublicStartLoginRoute: ApiPublicStartLoginRoute,
   ApiPublicSyncSnapshotRoute: ApiPublicSyncSnapshotRoute,
+  ApiPublicTelegramRelayRoute: ApiPublicTelegramRelayRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicTestTelegramRoute: ApiPublicTestTelegramRoute,
   ApiPublicWeeklyReportRoute: ApiPublicWeeklyReportRoute,
