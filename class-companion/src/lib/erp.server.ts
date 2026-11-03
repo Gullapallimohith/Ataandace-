@@ -30,9 +30,11 @@ export type ErpSession = {
   status: string;
 };
 
-const SESSION_FILE = path.join(process.cwd(), ".erp-session.json");
-const SNAPSHOTS_FILE = path.join(process.cwd(), ".erp-attendance.json");
-const SETTINGS_FILE = path.join(process.cwd(), ".app-settings.json");
+const TMP_DIR = fs.existsSync("/tmp") ? "/tmp" : process.cwd();
+const SESSION_FILE = path.join(TMP_DIR, ".erp-session.json");
+const SNAPSHOTS_FILE = path.join(TMP_DIR, ".erp-attendance.json");
+const SETTINGS_FILE = path.join(TMP_DIR, ".app-settings.json");
+const HISTORY_FILE = path.join(TMP_DIR, ".erp-history.json");
 
 export async function isSyncEnabled(db?: SupabaseClient | null): Promise<boolean> {
   if (isSupabaseConfigured() && db) {
@@ -42,9 +44,12 @@ export async function isSyncEnabled(db?: SupabaseClient | null): Promise<boolean
     } catch {}
   }
   try {
-    if (fs.existsSync(SETTINGS_FILE)) {
-      const parsed = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8"));
-      if (typeof parsed.sync_enabled === "boolean") return parsed.sync_enabled;
+    const candidates = [SETTINGS_FILE, path.join(process.cwd(), ".app-settings.json"), path.join(process.cwd(), "class-companion", ".app-settings.json")];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        const parsed = JSON.parse(fs.readFileSync(c, "utf-8"));
+        if (typeof parsed.sync_enabled === "boolean") return parsed.sync_enabled;
+      }
     }
   } catch {}
   return true; // Default to enabled
@@ -63,8 +68,11 @@ export async function setSyncEnabled(enabled: boolean, db?: SupabaseClient | nul
 
 function readStoredSession(): ErpSession | null {
   try {
-    if (fs.existsSync(SESSION_FILE)) {
-      return JSON.parse(fs.readFileSync(SESSION_FILE, "utf-8"));
+    const candidates = [SESSION_FILE, path.join(process.cwd(), ".erp-session.json"), path.join(process.cwd(), "class-companion", ".erp-session.json")];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        return JSON.parse(fs.readFileSync(c, "utf-8"));
+      }
     }
   } catch {}
   return null;
@@ -78,9 +86,12 @@ function writeStoredSession(s: ErpSession) {
 
 function readStoredSnapshots(): any[] | null {
   try {
-    if (fs.existsSync(SNAPSHOTS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(SNAPSHOTS_FILE, "utf-8"));
-      if (Array.isArray(data) && data.length > 0) return data;
+    const candidates = [SNAPSHOTS_FILE, path.join(process.cwd(), ".erp-attendance.json"), path.join(process.cwd(), "class-companion", ".erp-attendance.json")];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        const data = JSON.parse(fs.readFileSync(c, "utf-8"));
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
     }
   } catch {}
   return null;
@@ -106,7 +117,7 @@ export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
   { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "P", section: "24CS3207", total_conducted: 24, total_attended: 18, updated_at: new Date().toISOString() },
   { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "L", section: "24CS2235F", total_conducted: 44, total_attended: 36, updated_at: new Date().toISOString() },
   { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "P", section: "24CS2235F", total_conducted: 26, total_attended: 26, updated_at: new Date().toISOString() },
-  { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "L", section: "24CS3105", total_conducted: 58, total_attended: 51, updated_at: new Date().toISOString() },
+  { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "L", section: "24CS3105", total_conducted: 59, total_attended: 52, updated_at: new Date().toISOString() },
   { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "T", section: "24CS3105", total_conducted: 37, total_attended: 34, updated_at: new Date().toISOString() },
   { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "L", section: "24DEA3101", total_conducted: 44, total_attended: 35, updated_at: new Date().toISOString() },
   { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "P", section: "24DEA3101", total_conducted: 38, total_attended: 35, updated_at: new Date().toISOString() },
@@ -116,6 +127,17 @@ export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
 ];
 
 export const DEFAULT_HISTORY = [
+  {
+    id: "h_1793676846276_eyq8c",
+    coursecode: "24CS3105",
+    coursedesc: "INFORMATION ASSURANCE AND SECURITY",
+    section: "24CS3105",
+    ltps: "L",
+    status: "present",
+    date: "2026-11-03",
+    note: "Conducted: 59, Attended: 52",
+    created_at: "2026-11-03T03:34:06.276Z",
+  },
   {
     id: "h_1793632962560_elf18",
     coursecode: "24CI3201",
@@ -294,13 +316,14 @@ export const SEMESTER_DATA: Record<string, SemesterOption> = {
   },
 };
 
-const HISTORY_FILE = path.join(process.cwd(), ".erp-history.json");
-
 function readStoredHistory(): any[] | null {
   try {
-    if (fs.existsSync(HISTORY_FILE)) {
-      const data = JSON.parse(fs.readFileSync(HISTORY_FILE, "utf-8"));
-      if (Array.isArray(data) && data.length > 0) return data;
+    const candidates = [HISTORY_FILE, path.join(process.cwd(), ".erp-history.json"), path.join(process.cwd(), "class-companion", ".erp-history.json")];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        const data = JSON.parse(fs.readFileSync(c, "utf-8"));
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
     }
   } catch {}
   return null;

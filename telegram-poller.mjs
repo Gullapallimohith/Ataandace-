@@ -10,6 +10,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { exec } from "node:child_process";
 
 // Load .env
 function loadEnv() {
@@ -230,6 +231,11 @@ async function telegramSend(text, parseMode = "HTML") {
 }
 
 async function telegramSendPhoto(photoBuffer, caption) {
+  const buf = Buffer.isBuffer(photoBuffer)
+    ? photoBuffer
+    : Buffer.from(photoBuffer instanceof ArrayBuffer ? new Uint8Array(photoBuffer) : photoBuffer);
+  const photoBase64 = buf.toString("base64");
+
   // Try sending photo via Vercel Relay first
   try {
     const res = await fetchWithTimeout(
@@ -239,7 +245,7 @@ async function telegramSendPhoto(photoBuffer, caption) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "photo",
-          photoBase64: photoBuffer.toString("base64"),
+          photoBase64,
           caption,
         }),
       },
@@ -259,7 +265,7 @@ async function telegramSendPhoto(photoBuffer, caption) {
     form.append("chat_id", CHAT_ID);
     form.append("caption", caption);
     form.append("parse_mode", "HTML");
-    form.append("photo", new Blob([photoBuffer], { type: "image/png" }), "captcha.png");
+    form.append("photo", new Blob([buf], { type: "image/png" }), "captcha.png");
     const res = await fetchWithTimeout(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
       method: "POST",
       body: form,
@@ -502,7 +508,7 @@ async function startErpLogin() {
       console.error("[ERP] Failed to download CAPTCHA image:", captcha.response.status);
       return false;
     }
-    const image = await captcha.response.arrayBuffer();
+    const image = Buffer.from(await captcha.response.arrayBuffer());
 
     writeSession({
       csrf_token: csrf,
@@ -573,6 +579,20 @@ async function submitErpLogin(captchaText) {
 
     console.log("[ERP] Login successful! Activating live session...");
     writeSession({ cookies: loginRes.cookies, status: "active" });
+
+    // Sync session and current snapshots to Vercel immediately so website & webhook stay live
+    fetch(`${PROD_URL}/api/public/sync-snapshot`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${BOT_TOKEN}`,
+      },
+      body: JSON.stringify({
+        snapshots: readSnapshots(),
+        history: readHistory().slice(0, 50),
+        session: { cookies: loginRes.cookies, status: "active" },
+      }),
+    }).catch(() => {});
 
     // Send immediate confirmation to Telegram right after login succeeds
     await telegramSend(
@@ -802,7 +822,11 @@ async function checkAttendance(isInitialAfterLogin = false) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${BOT_TOKEN}`,
         },
-        body: JSON.stringify({ snapshots: rows, history: readHistory().slice(0, 50) }),
+        body: JSON.stringify({
+          snapshots: rows,
+          history: readHistory().slice(0, 50),
+          session: readSession(),
+        }),
       }).catch(() => {});
       fetch(`${PROD_URL}/`).catch(() => {});
     } catch {}
@@ -1187,21 +1211,31 @@ function checkTimetableReminders() {
       }
     }
 
-    // At Start / During Period Window (matches Reference Screenshot 3 format)
+    // At Start Window (matches Reference Screenshot 3 format: Period X starting now: ...)
     const alertNowKey = `now_${todayStr}_${period.key}`;
-    if (currentTotalMins >= period.start && currentTotalMins < period.end) {
+    if (currentTotalMins >= period.start && currentTotalMins <= period.start + 5) {
       if (!sentTimetableAlerts.has(alertNowKey)) {
         sentTimetableAlerts.add(alertNowKey);
         const venueInfo = slot.venue ? ` (${slot.venue})` : "";
-        const isLate = currentTotalMins > period.start + 5;
-        const msg = isLate
-          ? `📚 Period ${period.num} in session: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`
-          : `📚 Period ${period.num} starting now: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`;
+        const msg = `📚 Period ${period.num} starting now: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`;
         console.log(`[Timetable Reminder] ${msg}`);
         telegramSend(msg).catch(console.error);
       }
     }
   }
+}
+
+/* ---------------- System Sleep Prevention (during college hours) ---------------- */
+
+function preventSystemSleep() {
+  const { hours, isSunday } = getIstTime();
+  if (isSunday || hours < 8 || hours >= 18) return;
+
+  const scriptPath = resolveFile("prevent-sleep.ps1");
+  exec(`powershell -ExecutionPolicy Bypass -File "${scriptPath}"`, (err) => {
+    if (err) console.warn("[Power] Sleep prevent error:", err.message);
+    else console.log("[Power] Windows sleep prevention active during college hours.");
+  });
 }
 
 /* ---------------- Dynamic Poll Scheduler with Guaranteed Continuation ---------------- */
@@ -1284,19 +1318,23 @@ async function startDaemon() {
     console.error("[Telegram] Startup notification error:", err.message);
   }
 
-  // 5. Check timetable reminders immediately on start
+  // 5. Enforce system sleep prevention during college hours
+  preventSystemSleep();
+  setInterval(preventSystemSleep, 15 * 60 * 1000);
+
+  // 6. Check timetable reminders immediately on start
   checkTimetableReminders();
 
-  // 6. Start attendance polling loop (checks every 5 min)
+  // 7. Start attendance polling loop (checks every 5 min)
   setTimeout(scheduleAttendanceRunner, 3000);
 
-  // 7. Keep-alive ping every 2 minutes so session NEVER expires
+  // 8. Keep-alive ping every 2 minutes so session NEVER expires
   setInterval(keepSessionAlive, 2 * 60 * 1000);
 
-  // 8. Timetable next-class reminder scheduler (checks every 30s)
+  // 9. Timetable next-class reminder scheduler (checks every 30s)
   setInterval(checkTimetableReminders, 30 * 1000);
 
-  // 9. Start Sunday morning weekly report scheduler (checks every 30s)
+  // 10. Start Sunday morning weekly report scheduler (checks every 30s)
   setInterval(checkSundayWeeklySchedule, 30 * 1000);
 }
 

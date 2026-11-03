@@ -45,6 +45,56 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
           return Response.json({ ok: true, command: "bunk", result });
         }
 
+        // Handle /next, /class, /room, /where, /timetable command
+        if (/^(\/)?(next|class|room|where|timetable)/i.test(trimmed)) {
+          const { PERIODS, istNow, getTimetable } = await import("@/lib/timetable");
+          const { day, minutes } = istNow();
+          if (!day) {
+            await sendTelegram("🏖️ It's Sunday! No classes scheduled today.");
+            return Response.json({ ok: true, command: "next", day: null });
+          }
+
+          const timetable = await getTimetable(db);
+          const daySchedule = timetable[day] || {};
+
+          let currentSlot: any = null;
+          let nextSlot: any = null;
+          let minsUntilNext = 0;
+
+          for (const period of PERIODS) {
+            if (period.isBreak) continue;
+            const slot = daySchedule[period.key];
+            if (!slot) continue;
+
+            if (minutes >= period.start && minutes < period.end) {
+              currentSlot = { period, slot };
+            } else if (minutes < period.start && !nextSlot) {
+              nextSlot = { period, slot };
+              minsUntilNext = period.start - minutes;
+            }
+          }
+
+          if (nextSlot) {
+            const venueInfo = nextSlot.slot.venue ? ` (${nextSlot.slot.venue})` : "";
+            const timeDesc = minsUntilNext <= 10
+              ? `starting in ${minsUntilNext} mins`
+              : `at ${Math.floor(nextSlot.period.start / 60)}:${String(nextSlot.period.start % 60).padStart(2, "0")}`;
+            await sendTelegram(
+              `📚 <b>Next Class Today (${day}):</b>\n` +
+              `Period ${nextSlot.period.label.replace("P", "")} ${timeDesc}: ${nextSlot.slot.coursecode} · ${nextSlot.slot.section} · Room ${nextSlot.slot.room}${venueInfo}`
+            );
+          } else if (currentSlot) {
+            const venueInfo = currentSlot.slot.venue ? ` (${currentSlot.slot.venue})` : "";
+            await sendTelegram(
+              `📚 <b>Current Class:</b> Period ${currentSlot.period.label.replace("P", "")}: ${currentSlot.slot.coursecode} · ${currentSlot.slot.section} · Room ${currentSlot.slot.room}${venueInfo}\n\n` +
+              `🎉 No more classes scheduled after this today!`
+            );
+          } else {
+            await sendTelegram(`🎉 All classes for today (${day}) are finished!`);
+          }
+          return Response.json({ ok: true, command: "next" });
+        }
+
         // Handle /weekly or /report command
         if (/^(\/)?(weekly|report|averages)/i.test(trimmed)) {
           const { sendWeeklyAttendanceReport } = await import("@/lib/erp.server");
@@ -101,6 +151,7 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
             `🟢 <b>Recent Present Marks:</b>\n` +
             `${presentTxt}\n\n` +
             `💡 <b>Commands available:</b>\n` +
+            `• <code>/next</code> — check your next class, room & timing\n` +
             `• <code>/present</code> — view present status and attendance notifications\n` +
             `• <code>/weekly</code> — generate Sunday weekly subject averages report\n` +
             `• <code>/login</code> — request fresh ERP login CAPTCHA\n` +
