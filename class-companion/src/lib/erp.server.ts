@@ -41,7 +41,7 @@ export async function isSyncEnabled(db?: SupabaseClient | null): Promise<boolean
     try {
       const { data } = await db.from("app_settings").select("sync_enabled").eq("id", 1).maybeSingle();
       if (data && typeof data.sync_enabled === "boolean") return data.sync_enabled;
-    } catch {}
+    } catch { }
   }
   try {
     const candidates = [SETTINGS_FILE, path.join(process.cwd(), ".app-settings.json"), path.join(process.cwd(), "class-companion", ".app-settings.json")];
@@ -51,18 +51,18 @@ export async function isSyncEnabled(db?: SupabaseClient | null): Promise<boolean
         if (typeof parsed.sync_enabled === "boolean") return parsed.sync_enabled;
       }
     }
-  } catch {}
+  } catch { }
   return true; // Default to enabled
 }
 
 export async function setSyncEnabled(enabled: boolean, db?: SupabaseClient | null): Promise<void> {
   try {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ sync_enabled: enabled, updated_at: new Date().toISOString() }, null, 2), "utf-8");
-  } catch {}
+  } catch { }
   if (isSupabaseConfigured() && db) {
     try {
       await db.from("app_settings").update({ sync_enabled: enabled, updated_at: new Date().toISOString() }).eq("id", 1);
-    } catch {}
+    } catch { }
   }
 }
 
@@ -74,14 +74,14 @@ function readStoredSession(): ErpSession | null {
         return JSON.parse(fs.readFileSync(c, "utf-8"));
       }
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
 function writeStoredSession(s: ErpSession) {
   try {
     fs.writeFileSync(SESSION_FILE, JSON.stringify(s, null, 2), "utf-8");
-  } catch {}
+  } catch { }
 }
 
 function readStoredSnapshots(): any[] | null {
@@ -93,14 +93,14 @@ function readStoredSnapshots(): any[] | null {
         if (Array.isArray(data) && data.length > 0) return data;
       }
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
 function writeStoredSnapshots(rows: any[]) {
   try {
     fs.writeFileSync(SNAPSHOTS_FILE, JSON.stringify(rows, null, 2), "utf-8");
-  } catch {}
+  } catch { }
 }
 
 let localMemorySession: ErpSession = readStoredSession() ?? {
@@ -325,14 +325,14 @@ function readStoredHistory(): any[] | null {
         if (Array.isArray(data) && data.length > 0) return data;
       }
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
 function writeStoredHistory(entries: any[]) {
   try {
     fs.writeFileSync(HISTORY_FILE, JSON.stringify(entries, null, 2), "utf-8");
-  } catch {}
+  } catch { }
 }
 
 let cachedSnapshots: any[] = readStoredSnapshots() ?? [...DEFAULT_COURSES];
@@ -369,7 +369,7 @@ export async function getSession(db?: SupabaseClient | null): Promise<ErpSession
     try {
       const { data } = await db.from("erp_session").select("*").eq("id", 1).maybeSingle();
       if (data) return data as ErpSession;
-    } catch {}
+    } catch { }
   }
   if (!localMemorySession.cookies || localMemorySession.status === "expired") {
     const stored = readStoredSession();
@@ -390,7 +390,7 @@ export async function saveSession(
         .from("erp_session")
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq("id", 1);
-    } catch {}
+    } catch { }
   }
 }
 
@@ -524,7 +524,7 @@ export async function checkAndNotifyAttendanceChanges(
         .from("attendance_snapshot")
         .select("coursecode, section, ltps, total_conducted, total_attended");
       if (data && data.length > 0) previousSnapshots = data;
-    } catch {}
+    } catch { }
   }
   if (previousSnapshots.length === 0) {
     previousSnapshots = getCachedSnapshots();
@@ -595,7 +595,7 @@ export async function checkAndNotifyAttendanceChanges(
             date: e.date,
           })),
         );
-      } catch {}
+      } catch { }
     }
   }
 
@@ -705,7 +705,7 @@ export async function sendWeeklyAttendanceReport(): Promise<{ ok: boolean; messa
       const db = admin();
       const { data: snapData } = await db.from("attendance_snapshot").select("*").order("coursecode");
       if (snapData && snapData.length > 0) snapshots = snapData;
-    } catch {}
+    } catch { }
   }
   const text = formatWeeklyReport(snapshots);
   const result = await sendTelegram(text);
@@ -722,7 +722,7 @@ export function mergeCookies(existing: string | null, response: Response): strin
   }
   const raw =
     typeof (response.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie ===
-    "function"
+      "function"
       ? (response.headers as unknown as { getSetCookie: () => string[] }).getSetCookie()
       : [response.headers.get("set-cookie") ?? ""].filter(Boolean);
   for (const cookie of raw) {
@@ -928,7 +928,7 @@ export async function startErpLogin(): Promise<{
   if (isSupabaseConfigured()) {
     try {
       db = admin();
-    } catch {}
+    } catch { }
   }
 
   const login = await erpFetch(ERP_LOGIN_URL);
@@ -968,7 +968,7 @@ export async function submitErpLogin(
   if (isSupabaseConfigured()) {
     try {
       db = admin();
-    } catch {}
+    } catch { }
   }
 
   const session = await getSession(db);
