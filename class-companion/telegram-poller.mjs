@@ -151,13 +151,35 @@ function getIstTime() {
 
 /* ---------------- Telegram API ---------------- */
 
+const VERCEL_RELAY_URL = `${PROD_URL}/api/public/telegram-relay`;
+
 async function telegramSend(text, parseMode = "HTML") {
+  // Try sending via Vercel Relay first (100% reliable through campus Wi-Fi)
+  try {
+    const res = await fetchWithTimeout(
+      VERCEL_RELAY_URL,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "message", text, parse_mode: parseMode }),
+      },
+      12000
+    );
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (err) {
+    console.warn("[Telegram] Vercel relay send warning, trying direct:", err.message);
+  }
+
+  // Fallback to direct Telegram API
   try {
     const res = await fetchWithTimeout(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: CHAT_ID, text, parse_mode: parseMode }),
-    }, 15000);
+    }, 12000);
     if (!res.ok) {
       const errText = await res.text();
       if (parseMode === "HTML") {
@@ -175,6 +197,30 @@ async function telegramSend(text, parseMode = "HTML") {
 }
 
 async function telegramSendPhoto(photoBuffer, caption) {
+  // Try sending photo via Vercel Relay first
+  try {
+    const res = await fetchWithTimeout(
+      VERCEL_RELAY_URL,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "photo",
+          photoBase64: photoBuffer.toString("base64"),
+          caption,
+        }),
+      },
+      20000
+    );
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (err) {
+    console.warn("[Telegram] Vercel relay photo warning, trying direct:", err.message);
+  }
+
+  // Fallback to direct Telegram API
   try {
     const form = new FormData();
     form.append("chat_id", CHAT_ID);
@@ -194,6 +240,22 @@ async function telegramSendPhoto(photoBuffer, caption) {
 }
 
 async function deleteTelegramWebhook() {
+  try {
+    const res = await fetchWithTimeout(
+      VERCEL_RELAY_URL,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "deleteWebhook" }),
+      },
+      10000
+    );
+    if (res.ok) {
+      console.log("[Telegram] Webhook cleared via Vercel relay.");
+      return;
+    }
+  } catch {}
+
   try {
     const res = await fetchWithTimeout(`https://api.telegram.org/bot${BOT_TOKEN}/deleteWebhook?drop_pending_updates=false`, {}, 10000);
     const json = await res.json();
@@ -807,16 +869,38 @@ async function pollTelegramUpdates() {
   isPollingUpdates = true;
 
   try {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=15`;
-    const res = await fetchWithTimeout(url, {}, 25000);
-    if (!res.ok) {
+    let data = null;
+
+    // 1. Try polling via Vercel Relay (unblocked on campus Wi-Fi)
+    try {
+      const res = await fetchWithTimeout(
+        VERCEL_RELAY_URL,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "getUpdates", offset: lastUpdateId + 1 }),
+        },
+        18000
+      );
+      if (res.ok) {
+        data = await res.json();
+      }
+    } catch (relayErr) {
+      // Fallback to direct Telegram getUpdates
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=10`;
+      const directRes = await fetchWithTimeout(url, {}, 15000);
+      if (directRes.ok) {
+        data = await directRes.json();
+      }
+    }
+
+    if (!data || !data.ok) {
       await new Promise((r) => setTimeout(r, 2000));
       isPollingUpdates = false;
       return setImmediate(pollTelegramUpdates);
     }
 
-    const data = await res.json();
-    if (data.ok && Array.isArray(data.result)) {
+    if (Array.isArray(data.result)) {
       for (const update of data.result) {
         lastUpdateId = Math.max(lastUpdateId, update.update_id);
         const text = (update.message?.text || update.edited_message?.text || "").trim();
