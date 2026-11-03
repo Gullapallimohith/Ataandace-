@@ -1058,7 +1058,7 @@ function checkTimetableReminders() {
     const slot = daySchedule[period.key];
     if (!slot) continue;
 
-    // 10-Minute Reminder Window (fires between 10 to 1 minutes before period starts)
+    // 10-Minute Reminder Window (fires between 10 to 0 minutes before period starts)
     const alert10mKey = `10m_${todayStr}_${period.key}`;
     if (currentTotalMins >= period.start - 10 && currentTotalMins < period.start) {
       if (!sentTimetableAlerts.has(alert10mKey)) {
@@ -1070,13 +1070,16 @@ function checkTimetableReminders() {
       }
     }
 
-    // At Start Reminder Window (matches Reference Screenshot 3 format)
+    // At Start / During Period Window (matches Reference Screenshot 3 format)
     const alertNowKey = `now_${todayStr}_${period.key}`;
-    if (currentTotalMins >= period.start && currentTotalMins < period.start + 3) {
+    if (currentTotalMins >= period.start && currentTotalMins < period.end) {
       if (!sentTimetableAlerts.has(alertNowKey)) {
         sentTimetableAlerts.add(alertNowKey);
         const venueInfo = slot.venue ? ` (${slot.venue})` : "";
-        const msg = `📚 Period ${period.num} starting now: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`;
+        const isLate = currentTotalMins > period.start + 5;
+        const msg = isLate
+          ? `📚 Period ${period.num} in session: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`
+          : `📚 Period ${period.num} starting now: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`;
         console.log(`[Timetable Reminder] ${msg}`);
         telegramSend(msg).catch(console.error);
       }
@@ -1149,16 +1152,34 @@ async function startDaemon() {
   // 3. Start Telegram update listener
   pollTelegramUpdates();
 
-  // 4. Start attendance polling loop (checks every 5 min)
+  // 4. Send startup status to student so they know bot is active
+  try {
+    const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayName = dayNames[istDate.getUTCDay()];
+    await telegramSend(
+      `⚡ <b>Class Companion & ERP Bot Started</b>\n` +
+      `📅 Today: <b>${dayName}</b> (Checking ERP every 5 min)\n` +
+      `🔔 Next class reminders active (10 mins before & start time)\n` +
+      `💡 <i>Send /next or /class to check your next room anytime!</i>`
+    );
+  } catch (err) {
+    console.error("[Telegram] Startup notification error:", err.message);
+  }
+
+  // 5. Check timetable reminders immediately on start
+  checkTimetableReminders();
+
+  // 6. Start attendance polling loop (checks every 5 min)
   setTimeout(scheduleAttendanceRunner, 3000);
 
-  // 5. Keep-alive ping every 2 minutes so session NEVER expires
+  // 7. Keep-alive ping every 2 minutes so session NEVER expires
   setInterval(keepSessionAlive, 2 * 60 * 1000);
 
-  // 6. Timetable next-class reminder scheduler (checks every 30s)
+  // 8. Timetable next-class reminder scheduler (checks every 30s)
   setInterval(checkTimetableReminders, 30 * 1000);
 
-  // 7. Start Sunday morning weekly report scheduler (checks every 30s)
+  // 9. Start Sunday morning weekly report scheduler (checks every 30s)
   setInterval(checkSundayWeeklySchedule, 30 * 1000);
 }
 
