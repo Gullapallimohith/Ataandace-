@@ -121,7 +121,12 @@ const runnerHandler = async () => {
   try {
     const session = await getSession(db);
     if (!session || session.status !== "active" || !session.cookies) {
-      results.attendance = { ok: false, error: "session not active" };
+      if (session?.status !== "waiting_captcha") {
+        const loginRes = await startErpLogin();
+        results.attendance = { ok: false, error: "session not active", loginPrompted: loginRes.ok };
+      } else {
+        results.attendance = { ok: false, error: "waiting for captcha reply in telegram" };
+      }
     } else {
       const { html, cookies, ok } = await fetchAttendanceHtml(session.cookies);
       if (!ok) {

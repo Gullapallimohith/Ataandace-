@@ -103,12 +103,16 @@ function writeStoredSnapshots(rows: any[]) {
   } catch { }
 }
 
-let localMemorySession: ErpSession = readStoredSession() ?? {
+export const DEFAULT_ERP_SESSION: ErpSession = {
   id: 1,
-  csrf_token: null,
-  cookies: null,
-  status: "expired",
+  csrf_token: "LYEuQXTtD_jUZQtAi7KDvD6b47LBl7fjLAei55Eso6hD8GETHotZyYYhWw_89_XdXOKb1YvR4IZVasuL5ETu8g==",
+  cookies:
+    process.env["ERP_COOKIES"] ||
+    "SERVERID=erp3; PHPSESSID=qlt8cflvqb16juaj0r4t79uvuv; _csrf=a91f8180cfc618c9bf98d75d2bcec821af6d65c2eb585c5e1e450412122b8201a%3A2%3A%7Bi%3A0%3Bs%3A5%3A%22_csrf%22%3Bi%3A1%3Bs%3A32%3A%227aTsNL3bViooUqJZ8iD9An69w4lNGAA8%22%3B%7D; kl_erp_device_id=7ea09595b1aea51562fd43684dfb1ee10796217be85b7e3c5ae3292c1e167a1ba%3A2%3A%7Bi%3A0%3Bs%3A16%3A%22kl_erp_device_id%22%3Bi%3A1%3Bs%3A64%3A%224e465c60081eabd2cb68aec012e72b73b4b5993b728905bfa2ef93cc7f467b8e%22%3B%7D",
+  status: "active",
 };
+
+let localMemorySession: ErpSession = readStoredSession() ?? DEFAULT_ERP_SESSION;
 
 export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
   { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "L", section: "24CI3201", total_conducted: 62, total_attended: 55, updated_at: new Date().toISOString() },
@@ -472,7 +476,11 @@ export async function getSession(db?: SupabaseClient | null): Promise<ErpSession
   }
   if (!localMemorySession.cookies || localMemorySession.status === "expired") {
     const stored = readStoredSession();
-    if (stored) localMemorySession = stored;
+    if (stored) {
+      localMemorySession = stored;
+    } else if (DEFAULT_ERP_SESSION.cookies) {
+      localMemorySession = DEFAULT_ERP_SESSION;
+    }
   }
   return localMemorySession;
 }
