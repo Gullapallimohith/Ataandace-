@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicBunkCalculatorRouteImport } from './routes/api/public/bunk-calculator'
+import { Route as ApiPublicCloudRunnerRouteImport } from './routes/api/public/cloud-runner'
 import { Route as ApiPublicGetAttendanceRouteImport } from './routes/api/public/get-attendance'
 import { Route as ApiPublicLoginErpRouteImport } from './routes/api/public/login-erp'
 import { Route as ApiPublicNotifyPeriodRouteImport } from './routes/api/public/notify-period'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiPublicBunkCalculatorRoute = ApiPublicBunkCalculatorRouteImport.update({
   id: '/api/public/bunk-calculator',
   path: '/api/public/bunk-calculator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCloudRunnerRoute = ApiPublicCloudRunnerRouteImport.update({
+  id: '/api/public/cloud-runner',
+  path: '/api/public/cloud-runner',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicGetAttendanceRoute = ApiPublicGetAttendanceRouteImport.update({
@@ -100,6 +106,7 @@ const ApiPublicWeeklyReportRoute = ApiPublicWeeklyReportRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/public/bunk-calculator': typeof ApiPublicBunkCalculatorRoute
+  '/api/public/cloud-runner': typeof ApiPublicCloudRunnerRoute
   '/api/public/get-attendance': typeof ApiPublicGetAttendanceRoute
   '/api/public/login-erp': typeof ApiPublicLoginErpRoute
   '/api/public/notify-period': typeof ApiPublicNotifyPeriodRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/public/bunk-calculator': typeof ApiPublicBunkCalculatorRoute
+  '/api/public/cloud-runner': typeof ApiPublicCloudRunnerRoute
   '/api/public/get-attendance': typeof ApiPublicGetAttendanceRoute
   '/api/public/login-erp': typeof ApiPublicLoginErpRoute
   '/api/public/notify-period': typeof ApiPublicNotifyPeriodRoute
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/public/bunk-calculator': typeof ApiPublicBunkCalculatorRoute
+  '/api/public/cloud-runner': typeof ApiPublicCloudRunnerRoute
   '/api/public/get-attendance': typeof ApiPublicGetAttendanceRoute
   '/api/public/login-erp': typeof ApiPublicLoginErpRoute
   '/api/public/notify-period': typeof ApiPublicNotifyPeriodRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/api/public/bunk-calculator'
+    | '/api/public/cloud-runner'
     | '/api/public/get-attendance'
     | '/api/public/login-erp'
     | '/api/public/notify-period'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/api/public/bunk-calculator'
+    | '/api/public/cloud-runner'
     | '/api/public/get-attendance'
     | '/api/public/login-erp'
     | '/api/public/notify-period'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/api/public/bunk-calculator'
+    | '/api/public/cloud-runner'
     | '/api/public/get-attendance'
     | '/api/public/login-erp'
     | '/api/public/notify-period'
@@ -200,6 +212,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiPublicBunkCalculatorRoute: typeof ApiPublicBunkCalculatorRoute
+  ApiPublicCloudRunnerRoute: typeof ApiPublicCloudRunnerRoute
   ApiPublicGetAttendanceRoute: typeof ApiPublicGetAttendanceRoute
   ApiPublicLoginErpRoute: typeof ApiPublicLoginErpRoute
   ApiPublicNotifyPeriodRoute: typeof ApiPublicNotifyPeriodRoute
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/bunk-calculator'
       fullPath: '/api/public/bunk-calculator'
       preLoaderRoute: typeof ApiPublicBunkCalculatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cloud-runner': {
+      id: '/api/public/cloud-runner'
+      path: '/api/public/cloud-runner'
+      fullPath: '/api/public/cloud-runner'
+      preLoaderRoute: typeof ApiPublicCloudRunnerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/get-attendance': {
@@ -320,6 +340,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiPublicBunkCalculatorRoute: ApiPublicBunkCalculatorRoute,
+  ApiPublicCloudRunnerRoute: ApiPublicCloudRunnerRoute,
   ApiPublicGetAttendanceRoute: ApiPublicGetAttendanceRoute,
   ApiPublicLoginErpRoute: ApiPublicLoginErpRoute,
   ApiPublicNotifyPeriodRoute: ApiPublicNotifyPeriodRoute,
