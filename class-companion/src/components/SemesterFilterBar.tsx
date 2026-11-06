@@ -132,11 +132,10 @@ export function SemesterFilterBar({ selectedSemester, onSemesterChange }: Props)
       {/* Notification Toast Banner */}
       {notification && (
         <div
-          className={`mt-3.5 flex items-center justify-between rounded-lg p-3 text-xs font-mono transition-all ${
-            notification.isError
+          className={`mt-3.5 flex items-center justify-between rounded-lg p-3 text-xs font-mono transition-all ${notification.isError
               ? "bg-destructive/15 text-destructive border border-destructive/30"
               : "bg-success/15 text-success border border-success/30"
-          }`}
+            }`}
         >
           <span className="flex-1">{notification.text}</span>
           <button

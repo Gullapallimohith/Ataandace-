@@ -115,7 +115,7 @@ export const DEFAULT_ERP_SESSION: ErpSession = {
 let localMemorySession: ErpSession = readStoredSession() ?? DEFAULT_ERP_SESSION;
 
 export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
-  { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "L", section: "24CI3201", total_conducted: 62, total_attended: 55, updated_at: new Date().toISOString() },
+  { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "L", section: "24CI3201", total_conducted: 63, total_attended: 56, updated_at: new Date().toISOString() },
   { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "P", section: "24CI3201", total_conducted: 31, total_attended: 22, updated_at: new Date().toISOString() },
   { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "L", section: "24CS3207", total_conducted: 68, total_attended: 56, updated_at: new Date().toISOString() },
   { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "P", section: "24CS3207", total_conducted: 24, total_attended: 18, updated_at: new Date().toISOString() },
@@ -131,6 +131,17 @@ export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
 ];
 
 export const DEFAULT_HISTORY = [
+  {
+    id: "h_1793949900000_ci3201",
+    coursecode: "24CI3201",
+    coursedesc: "ADAPTIVE SOFTWARE ENGINEERING",
+    section: "24CI3201",
+    ltps: "L",
+    status: "present",
+    date: "2026-11-06",
+    note: "Conducted: 63, Attended: 56",
+    created_at: new Date().toISOString(),
+  },
   {
     id: "h_1793936030466_qn5b8",
     coursecode: "24SDCS03",

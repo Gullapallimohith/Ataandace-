@@ -110,7 +110,7 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
             try {
               const { data: histData } = await db.from("attendance_history").select("*").limit(10);
               if (histData && histData.length > 0) hist = histData;
-            } catch {}
+            } catch { }
           }
           const recentPresent = (hist ?? []).filter((h) => h.status === "present").slice(0, 5);
           const presentTxt = recentPresent.length > 0
@@ -136,7 +136,7 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
               if (data && data.length > 0) rows = data;
               const { data: histData } = await db.from("attendance_history").select("*").limit(10);
               if (histData && histData.length > 0) hist = histData;
-            } catch {}
+            } catch { }
           }
           const conducted = (rows ?? []).reduce((s, r) => s + (r.total_conducted || 0), 0);
           const attended = (rows ?? []).reduce((s, r) => s + (r.total_attended || 0), 0);
