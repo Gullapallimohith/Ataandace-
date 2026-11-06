@@ -92,3 +92,4 @@ export async function saveStoredCourseAttendance(
   const key = `att_${coursecode}_${ltps}`;
   await setCloudKey(key, `${attended}_${conducted}`);
 }
+

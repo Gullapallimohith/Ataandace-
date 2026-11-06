@@ -17,7 +17,6 @@ type Props = {
 export function SemesterFilterBar({ selectedSemester, onSemesterChange }: Props) {
   const queryClient = useQueryClient();
   const [isSendingCaptcha, setIsSendingCaptcha] = useState(false);
-  const [isSendingReport, setIsSendingReport] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [notification, setNotification] = useState<{ text: string; isError: boolean } | null>(null);
 
@@ -45,33 +44,6 @@ export function SemesterFilterBar({ selectedSemester, onSemesterChange }: Props)
       });
     } finally {
       setIsSendingCaptcha(false);
-    }
-  };
-
-  const handleSendPresentStatus = async () => {
-    setIsSendingReport(true);
-    setNotification(null);
-    try {
-      const res = await fetch("/api/public/send-present-status", { method: "POST" });
-      const data = await res.json();
-      if (data.ok) {
-        setNotification({
-          text: `📲 Real-time Present status & attendance report delivered to Telegram! (Overall: ${data.overall}%)`,
-          isError: false,
-        });
-      } else {
-        setNotification({
-          text: data.error || "Failed to send message to Telegram. Check bot configuration.",
-          isError: true,
-        });
-      }
-    } catch {
-      setNotification({
-        text: "Could not send report to Telegram. Check internet connection.",
-        isError: true,
-      });
-    } finally {
-      setIsSendingReport(false);
     }
   };
 
@@ -142,17 +114,6 @@ export function SemesterFilterBar({ selectedSemester, onSemesterChange }: Props)
           >
             <span>📱</span>
             {isSendingCaptcha ? "Sending CAPTCHA…" : "Send CAPTCHA to Telegram"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSendPresentStatus}
-            disabled={isSendingReport}
-            title="Send present classes & overall attendance summary to Telegram"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3.5 py-2 font-mono text-xs font-semibold text-foreground hover:bg-secondary/70 hover:border-border/80 transition-colors disabled:opacity-50"
-          >
-            <span>📲</span>
-            {isSendingReport ? "Sending…" : "Send Present to Telegram"}
           </button>
 
           <button

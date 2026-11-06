@@ -138,10 +138,13 @@ export function istNow(now: Date = new Date()) {
   const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
   const dayIndex = ist.getUTCDay(); // 0 = Sunday
   const day: Day | null = dayIndex >= 1 && dayIndex <= 6 ? DAYS[dayIndex - 1]! : null;
+  const hh = String(ist.getUTCHours()).padStart(2, "0");
+  const mm = String(ist.getUTCMinutes()).padStart(2, "0");
   return {
     day,
     minutes: ist.getUTCHours() * 60 + ist.getUTCMinutes(),
     dateString: ist.toISOString().slice(0, 10),
+    timeString: `${hh}:${mm}`,
   };
 }
 

@@ -95,16 +95,39 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
           return Response.json({ ok: true, command: "next" });
         }
 
-        // Handle /weekly or /report command
-        if (/^(\/)?(weekly|report|averages)/i.test(trimmed)) {
+        // Handle /weekly, /report, /overall, /averages command (ONLY sent when user explicitly asks)
+        if (/^(\/)?(weekly|report|averages|overall)/i.test(trimmed)) {
           const { sendWeeklyAttendanceReport } = await import("@/lib/erp.server");
           const repResult = await sendWeeklyAttendanceReport();
           return Response.json({ ok: repResult.ok, command: "weekly", messageId: repResult.messageId });
         }
 
-        // Handle /attendance, /status, /present, /today, or /help command (with or without leading slash)
-        if (/^(\/)?(attendance|status|present|today|check|help)/i.test(trimmed)) {
-          const { getCachedSnapshots, getCachedHistory, isSupabaseConfigured, formatPresentNotification } = await import("@/lib/erp.server");
+        // Handle /present command - send single concise summary, NEVER spam individual cards
+        if (/^(\/)?present$/i.test(trimmed)) {
+          const { getCachedSnapshots, getCachedHistory, isSupabaseConfigured } = await import("@/lib/erp.server");
+          let hist = getCachedHistory();
+          if (isSupabaseConfigured()) {
+            try {
+              const { data: histData } = await db.from("attendance_history").select("*").limit(10);
+              if (histData && histData.length > 0) hist = histData;
+            } catch {}
+          }
+          const recentPresent = (hist ?? []).filter((h) => h.status === "present").slice(0, 5);
+          const presentTxt = recentPresent.length > 0
+            ? recentPresent.map((h) => `• <b>${h.coursedesc || h.coursecode}</b>: 🟢 <b>PRESENT</b> (${h.note || ''})`).join("\n")
+            : "• All tracked courses in sync.";
+
+          await sendTelegram(
+            `🟢 <b>Recent Present Marks:</b>\n\n` +
+            `${presentTxt}\n\n` +
+            `💡 <i>Real-time alert cards are dispatched automatically whenever a class is marked on ERP.</i>`
+          );
+          return Response.json({ ok: true, command: "present" });
+        }
+
+        // Handle /attendance, /status, /today, or /help command (with or without leading slash)
+        if (/^(\/)?(attendance|status|today|check|help)/i.test(trimmed)) {
+          const { getCachedSnapshots, getCachedHistory, isSupabaseConfigured } = await import("@/lib/erp.server");
           let rows = getCachedSnapshots();
           let hist = getCachedHistory();
           if (isSupabaseConfigured()) {
@@ -121,25 +144,7 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
           const pctVal = conducted > 0 ? ((attended / conducted) * 100).toFixed(1) : "0.0";
 
           const recentPresent = (hist ?? []).filter((h) => h.status === "present").slice(0, 5);
-
-          // If specifically asked for "present", send each present class card matching the exact required format
-          if (/present/i.test(trimmed) && recentPresent.length > 0) {
-            for (const item of recentPresent) {
-              const matchedRow = (rows ?? []).find(
-                (r) => r.coursecode === item.coursecode && (!item.section || r.section === item.section),
-              );
-              const notif = formatPresentNotification({
-                coursecode: item.coursecode,
-                section: item.section || matchedRow?.section || item.coursecode,
-                total_attended: matchedRow?.total_attended ?? 46,
-                total_conducted: matchedRow?.total_conducted ?? 53,
-              });
-              await sendTelegram(notif);
-              await new Promise((r) => setTimeout(r, 250));
-            }
-          }
-
-          let presentTxt = recentPresent.length > 0
+          const presentTxt = recentPresent.length > 0
             ? recentPresent.map((h) => `• <b>${h.coursedesc || h.coursecode}</b>: 🟢 <b>PRESENT</b>`).join("\n")
             : "• All tracked courses in sync.";
 
@@ -152,8 +157,8 @@ export const Route = createFileRoute("/api/public/telegram-webhook")({
             `${presentTxt}\n\n` +
             `💡 <b>Commands available:</b>\n` +
             `• <code>/next</code> — check your next class, room & timing\n` +
-            `• <code>/present</code> — view present status and attendance notifications\n` +
-            `• <code>/weekly</code> — generate Sunday weekly subject averages report\n` +
+            `• <code>/present</code> — view recent present courses\n` +
+            `• <code>/report</code> — generate overall subject averages report\n` +
             `• <code>/login</code> — request fresh ERP login CAPTCHA\n` +
             `• <code>/bunk dd-mm-yyyy day</code> — calculate bunk drop\n` +
             `• <code>/sync</code> — trigger live ERP sync`
