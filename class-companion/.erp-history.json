@@ -1,5 +1,115 @@
 [
   {
+    "id": "h_1793936030466_qn5b8",
+    "coursecode": "24SDCS03",
+    "coursedesc": "SOA PROGRAMMING AND MICROSERVICES",
+    "section": "24SDCS03",
+    "ltps": "S",
+    "status": "present",
+    "date": "2026-11-06",
+    "note": "Conducted: 61, Attended: 46",
+    "created_at": "2026-11-06T03:33:50.466Z"
+  },
+  {
+    "id": "h_1793892000683_lo0xr",
+    "coursecode": "24CI3201",
+    "coursedesc": "ADAPTIVE SOFTWARE ENGINEERING",
+    "section": "24CI3201",
+    "ltps": "L",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 62, Attended: 55",
+    "created_at": "2026-11-05T15:20:00.683Z"
+  },
+  {
+    "id": "h_1793892001942_shba2",
+    "coursecode": "24CS3207",
+    "coursedesc": "QUANTUM COMPUTING",
+    "section": "24CS3207",
+    "ltps": "L",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 68, Attended: 56",
+    "created_at": "2026-11-05T15:20:01.942Z"
+  },
+  {
+    "id": "h_1793892002999_qfzei",
+    "coursecode": "24CS2235F",
+    "coursedesc": "COMPILER DESIGN",
+    "section": "24CS2235F",
+    "ltps": "L",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 55, Attended: 47",
+    "created_at": "2026-11-05T15:20:02.999Z"
+  },
+  {
+    "id": "h_1793892004272_purxh",
+    "coursecode": "24CS3105",
+    "coursedesc": "INFORMATION ASSURANCE AND SECURITY",
+    "section": "24CS3105",
+    "ltps": "L",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 69, Attended: 62",
+    "created_at": "2026-11-05T15:20:04.272Z"
+  },
+  {
+    "id": "h_1793892005564_vbu3x",
+    "coursecode": "24CS3105",
+    "coursedesc": "INFORMATION ASSURANCE AND SECURITY",
+    "section": "24CS3105",
+    "ltps": "T",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 38, Attended: 35",
+    "created_at": "2026-11-05T15:20:05.564Z"
+  },
+  {
+    "id": "h_1793892006632_um2b2",
+    "coursecode": "24DEA3101",
+    "coursedesc": "FUNDAMENTALS OF DATA ENGINEERING",
+    "section": "24DEA3101",
+    "ltps": "L",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 55, Attended: 46",
+    "created_at": "2026-11-05T15:20:06.632Z"
+  },
+  {
+    "id": "h_1793892007916_5nrfa",
+    "coursecode": "24DEA3101",
+    "coursedesc": "FUNDAMENTALS OF DATA ENGINEERING",
+    "section": "24DEA3101",
+    "ltps": "P",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 41, Attended: 38",
+    "created_at": "2026-11-05T15:20:07.916Z"
+  },
+  {
+    "id": "h_1793892008983_26nb4",
+    "coursecode": "24SDCS03",
+    "coursedesc": "SOA PROGRAMMING AND MICROSERVICES",
+    "section": "24SDCS03",
+    "ltps": "L",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 43, Attended: 38",
+    "created_at": "2026-11-05T15:20:08.983Z"
+  },
+  {
+    "id": "h_1793892010051_ngp49",
+    "coursecode": "24CC3014",
+    "coursedesc": "AWS CERTIFIED SOLUTIONS ARCHITECT - ASSOCIATE (SAA-C03)",
+    "section": "24CC3014",
+    "ltps": "S",
+    "status": "present",
+    "date": "2026-11-05",
+    "note": "Conducted: 40, Attended: 38",
+    "created_at": "2026-11-05T15:20:10.051Z"
+  },
+  {
     "id": "h_1793676846276_eyq8c",
     "coursecode": "24CS3105",
     "coursedesc": "INFORMATION ASSURANCE AND SECURITY",

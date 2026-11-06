@@ -43,8 +43,12 @@ const runnerHandler = async () => {
 
   const db = isSupabaseConfigured() ? admin() : null;
   const syncActive = await isSyncEnabled(db);
+  const { isAlertAlreadySent, markAlertAsSent } = await import("@/lib/cloud-store.server");
 
   const { day, minutes, timeString } = istNow();
+  const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  const todayDate = istDate.toISOString().slice(0, 10);
+
   const results: Record<string, any> = {
     day,
     time: timeString,
@@ -68,17 +72,19 @@ const runnerHandler = async () => {
         const slot = timetable[day]?.[period.key];
         if (!slot) continue;
 
-        const alert10mKey = `10m_${day}_${period.key}`;
-        const alertNowKey = `now_${day}_${period.key}`;
+        const alert10mKey = `10m_${todayDate}_${day}_${period.key}`;
+        const alertNowKey = `now_${todayDate}_${day}_${period.key}`;
 
         // 10-Minute Reminder Window
         if (minutes >= period.start - 10 && minutes < period.start) {
-          if (!sentAlerts.has(alert10mKey)) {
+          const sent = sentAlerts.has(alert10mKey) || (await isAlertAlreadySent(alert10mKey));
+          if (!sent) {
+            recordSentAlert(alert10mKey);
+            await markAlertAsSent(alert10mKey);
             const venueInfo = slot.venue ? ` (${slot.venue})` : "";
             await sendTelegram(
               `📚 Period ${period.label.replace("P", "")} starting in 10 mins: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`
             );
-            recordSentAlert(alert10mKey);
             results.notified = `${period.key}_10m`;
             break;
           }
@@ -86,12 +92,14 @@ const runnerHandler = async () => {
 
         // At Start Window (first 5 minutes of period)
         if (minutes >= period.start && minutes <= period.start + 5) {
-          if (!sentAlerts.has(alertNowKey)) {
+          const sent = sentAlerts.has(alertNowKey) || (await isAlertAlreadySent(alertNowKey));
+          if (!sent) {
+            recordSentAlert(alertNowKey);
+            await markAlertAsSent(alertNowKey);
             const venueInfo = slot.venue ? ` (${slot.venue})` : "";
             await sendTelegram(
               `📚 Period ${period.label.replace("P", "")} starting now: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`
             );
-            recordSentAlert(alertNowKey);
             results.notified = `${period.key}_now`;
             break;
           }
@@ -104,12 +112,13 @@ const runnerHandler = async () => {
 
   // 2. Sunday 9:00 AM IST Weekly Report Check
   if (day === "Sun" && minutes >= 9 * 60 && minutes < 9 * 60 + 10) {
-    const weeklyKey = `weekly_report_${new Date().toISOString().slice(0, 10)}`;
-    const sentAlerts = getSentAlerts();
-    if (!sentAlerts.has(weeklyKey)) {
+    const weeklyKey = `weekly_report_${todayDate}`;
+    const sent = sentAlerts.has(weeklyKey) || (await isAlertAlreadySent(weeklyKey));
+    if (!sent) {
+      recordSentAlert(weeklyKey);
+      await markAlertAsSent(weeklyKey);
       try {
         await sendWeeklyAttendanceReport();
-        recordSentAlert(weeklyKey);
         results.weeklyReportSent = true;
       } catch (err: any) {
         results.weeklyError = err.message;

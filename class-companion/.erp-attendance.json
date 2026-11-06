@@ -4,8 +4,8 @@
     "coursedesc": "ADAPTIVE SOFTWARE ENGINEERING",
     "ltps": "L",
     "section": "24CI3201",
-    "total_conducted": 53,
-    "total_attended": 46
+    "total_conducted": 62,
+    "total_attended": 55
   },
   {
     "coursecode": "24CI3201",
@@ -20,8 +20,8 @@
     "coursedesc": "QUANTUM COMPUTING",
     "ltps": "L",
     "section": "24CS3207",
-    "total_conducted": 57,
-    "total_attended": 45
+    "total_conducted": 68,
+    "total_attended": 56
   },
   {
     "coursecode": "24CS3207",
@@ -36,8 +36,8 @@
     "coursedesc": "COMPILER DESIGN",
     "ltps": "L",
     "section": "24CS2235F",
-    "total_conducted": 44,
-    "total_attended": 36
+    "total_conducted": 55,
+    "total_attended": 47
   },
   {
     "coursecode": "24CS2235F",
@@ -52,55 +52,55 @@
     "coursedesc": "INFORMATION ASSURANCE AND SECURITY",
     "ltps": "L",
     "section": "24CS3105",
-    "total_conducted": 59,
-    "total_attended": 52
+    "total_conducted": 69,
+    "total_attended": 62
   },
   {
     "coursecode": "24CS3105",
     "coursedesc": "INFORMATION ASSURANCE AND SECURITY",
     "ltps": "T",
     "section": "24CS3105",
-    "total_conducted": 37,
-    "total_attended": 34
+    "total_conducted": 38,
+    "total_attended": 35
   },
   {
     "coursecode": "24DEA3101",
     "coursedesc": "FUNDAMENTALS OF DATA ENGINEERING",
     "ltps": "L",
     "section": "24DEA3101",
-    "total_conducted": 44,
-    "total_attended": 35
+    "total_conducted": 55,
+    "total_attended": 46
   },
   {
     "coursecode": "24DEA3101",
     "coursedesc": "FUNDAMENTALS OF DATA ENGINEERING",
     "ltps": "P",
     "section": "24DEA3101",
-    "total_conducted": 38,
-    "total_attended": 35
+    "total_conducted": 41,
+    "total_attended": 38
   },
   {
     "coursecode": "24SDCS03",
     "coursedesc": "SOA PROGRAMMING AND MICROSERVICES",
     "ltps": "L",
     "section": "24SDCS03",
-    "total_conducted": 32,
-    "total_attended": 27
+    "total_conducted": 43,
+    "total_attended": 38
   },
   {
     "coursecode": "24SDCS03",
     "coursedesc": "SOA PROGRAMMING AND MICROSERVICES",
     "ltps": "S",
     "section": "24SDCS03",
-    "total_conducted": 59,
-    "total_attended": 44
+    "total_conducted": 61,
+    "total_attended": 46
   },
   {
     "coursecode": "24CC3014",
     "coursedesc": "AWS CERTIFIED SOLUTIONS ARCHITECT - ASSOCIATE (SAA-C03)",
     "ltps": "S",
     "section": "24CC3014",
-    "total_conducted": 36,
-    "total_attended": 34
+    "total_conducted": 40,
+    "total_attended": 38
   }
 ]

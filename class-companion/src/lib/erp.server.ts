@@ -126,11 +126,22 @@ export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
   { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "L", section: "24DEA3101", total_conducted: 55, total_attended: 46, updated_at: new Date().toISOString() },
   { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "P", section: "24DEA3101", total_conducted: 41, total_attended: 38, updated_at: new Date().toISOString() },
   { coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", ltps: "L", section: "24SDCS03", total_conducted: 43, total_attended: 38, updated_at: new Date().toISOString() },
-  { coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", ltps: "S", section: "24SDCS03", total_conducted: 59, total_attended: 44, updated_at: new Date().toISOString() },
+  { coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", ltps: "S", section: "24SDCS03", total_conducted: 61, total_attended: 46, updated_at: new Date().toISOString() },
   { coursecode: "24CC3014", coursedesc: "AWS CERTIFIED SOLUTIONS ARCHITECT - ASSOCIATE (SAA-C03)", ltps: "S", section: "24CC3014", total_conducted: 40, total_attended: 38, updated_at: new Date().toISOString() },
 ];
 
 export const DEFAULT_HISTORY = [
+  {
+    id: "h_1793936030466_qn5b8",
+    coursecode: "24SDCS03",
+    coursedesc: "SOA PROGRAMMING AND MICROSERVICES",
+    section: "24SDCS03",
+    ltps: "S",
+    status: "present",
+    date: "2026-11-06",
+    note: "Conducted: 61, Attended: 46",
+    created_at: "2026-11-06T03:33:50.466Z",
+  },
   {
     id: "h_1793874426098_x8o67",
     coursecode: "24CI3201",
@@ -641,6 +652,25 @@ export async function checkAndNotifyAttendanceChanges(
     (previousSnapshots ?? []).map((s) => [`${s.coursecode}|${s.section}|${s.ltps}`, s] as const),
   );
 
+  const {
+    isAlertAlreadySent,
+    markAlertAsSent,
+    getStoredCourseAttendance,
+    saveStoredCourseAttendance,
+  } = await import("@/lib/cloud-store.server");
+
+  // Reconcile with cloud persistent storage to avoid false jumps on fresh containers
+  for (const row of rows) {
+    const cloudAtt = await getStoredCourseAttendance(row.coursecode, row.ltps);
+    if (cloudAtt) {
+      const existing = previous.get(`${row.coursecode}|${row.section}|${row.ltps}`);
+      if (existing) {
+        existing.total_attended = Math.max(existing.total_attended, cloudAtt.attended);
+        existing.total_conducted = Math.max(existing.total_conducted, cloudAtt.conducted);
+      }
+    }
+  }
+
   const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
   const today = istDate.toISOString().slice(0, 10);
   const hh = String(istDate.getUTCHours()).padStart(2, "0");
@@ -654,6 +684,13 @@ export async function checkAndNotifyAttendanceChanges(
     const prev = previous.get(`${row.coursecode}|${row.section}|${row.ltps}`);
     if (prev) {
       if (row.total_attended > prev.total_attended) {
+        // Deduplicate present alert per specific total_attended count
+        const presentAlertKey = `present_${row.coursecode}_${row.ltps}_${row.total_attended}`;
+        const alreadyNotified = await isAlertAlreadySent(presentAlertKey);
+        if (alreadyNotified) {
+          continue;
+        }
+
         // Attendance marked PRESENT
         const entry = {
           id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -668,7 +705,16 @@ export async function checkAndNotifyAttendanceChanges(
         newHistoryEntries.push(entry);
         changes.push(`${row.coursecode} · ${row.section} (PRESENT)`);
         await sendTelegram(formatPresentNotification(row));
+        await markAlertAsSent(presentAlertKey);
+        await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
       } else if (row.total_conducted > prev.total_conducted) {
+        // Deduplicate absent alert per specific total_conducted count
+        const absentAlertKey = `absent_${row.coursecode}_${row.ltps}_${row.total_conducted}`;
+        const alreadyNotified = await isAlertAlreadySent(absentAlertKey);
+        if (alreadyNotified) {
+          continue;
+        }
+
         // Class conducted, student marked ABSENT
         const entry = {
           id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -685,8 +731,15 @@ export async function checkAndNotifyAttendanceChanges(
         await sendTelegram(
           `❌ ${row.coursecode} · ${row.section || row.coursecode}\nMarked ABSENT\nAttendance: ${row.total_attended}/${row.total_conducted}\n\n${timeStr}`,
         );
+        await markAlertAsSent(absentAlertKey);
+        await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
       }
     }
+  }
+
+  // Always keep cloud persistent storage in sync with the latest rows
+  for (const row of rows) {
+    await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
   }
 
   if (newHistoryEntries.length > 0) {
