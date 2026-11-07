@@ -115,22 +115,77 @@ export const DEFAULT_ERP_SESSION: ErpSession = {
 let localMemorySession: ErpSession = readStoredSession() ?? DEFAULT_ERP_SESSION;
 
 export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
-  { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "L", section: "24CI3201", total_conducted: 63, total_attended: 56, updated_at: new Date().toISOString() },
+  { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "L", section: "24CI3201", total_conducted: 66, total_attended: 59, updated_at: new Date().toISOString() },
   { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "P", section: "24CI3201", total_conducted: 31, total_attended: 22, updated_at: new Date().toISOString() },
-  { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "L", section: "24CS3207", total_conducted: 68, total_attended: 56, updated_at: new Date().toISOString() },
+  { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "L", section: "24CS3207", total_conducted: 71, total_attended: 59, updated_at: new Date().toISOString() },
   { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "P", section: "24CS3207", total_conducted: 24, total_attended: 18, updated_at: new Date().toISOString() },
-  { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "L", section: "24CS2235F", total_conducted: 55, total_attended: 47, updated_at: new Date().toISOString() },
-  { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "P", section: "24CS2235F", total_conducted: 26, total_attended: 26, updated_at: new Date().toISOString() },
-  { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "L", section: "24CS3105", total_conducted: 69, total_attended: 62, updated_at: new Date().toISOString() },
+  { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "L", section: "24CS2235F", total_conducted: 58, total_attended: 50, updated_at: new Date().toISOString() },
+  { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "P", section: "24CS2235F", total_conducted: 29, total_attended: 29, updated_at: new Date().toISOString() },
+  { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "L", section: "24CS3105", total_conducted: 72, total_attended: 65, updated_at: new Date().toISOString() },
   { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "T", section: "24CS3105", total_conducted: 38, total_attended: 35, updated_at: new Date().toISOString() },
-  { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "L", section: "24DEA3101", total_conducted: 55, total_attended: 46, updated_at: new Date().toISOString() },
+  { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "L", section: "24DEA3101", total_conducted: 60, total_attended: 51, updated_at: new Date().toISOString() },
   { coursecode: "24DEA3101", coursedesc: "FUNDAMENTALS OF DATA ENGINEERING", ltps: "P", section: "24DEA3101", total_conducted: 41, total_attended: 38, updated_at: new Date().toISOString() },
-  { coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", ltps: "L", section: "24SDCS03", total_conducted: 43, total_attended: 38, updated_at: new Date().toISOString() },
+  { coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", ltps: "L", section: "24SDCS03", total_conducted: 46, total_attended: 41, updated_at: new Date().toISOString() },
   { coursecode: "24SDCS03", coursedesc: "SOA PROGRAMMING AND MICROSERVICES", ltps: "S", section: "24SDCS03", total_conducted: 61, total_attended: 46, updated_at: new Date().toISOString() },
   { coursecode: "24CC3014", coursedesc: "AWS CERTIFIED SOLUTIONS ARCHITECT - ASSOCIATE (SAA-C03)", ltps: "S", section: "24CC3014", total_conducted: 40, total_attended: 38, updated_at: new Date().toISOString() },
 ];
 
 export const DEFAULT_HISTORY = [
+  {
+    id: "h_1794025000000_cs2235f_l",
+    coursecode: "24CS2235F",
+    coursedesc: "COMPILER DESIGN",
+    section: "24CS2235F",
+    ltps: "L",
+    status: "present",
+    date: "2026-11-07",
+    note: "Conducted: 58, Attended: 50",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "h_1794025000001_ci3201_l",
+    coursecode: "24CI3201",
+    coursedesc: "ADAPTIVE SOFTWARE ENGINEERING",
+    section: "24CI3201",
+    ltps: "L",
+    status: "present",
+    date: "2026-11-07",
+    note: "Conducted: 66, Attended: 59",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "h_1794025000002_cs3207_l",
+    coursecode: "24CS3207",
+    coursedesc: "QUANTUM COMPUTING",
+    section: "24CS3207",
+    ltps: "L",
+    status: "present",
+    date: "2026-11-07",
+    note: "Conducted: 71, Attended: 59",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "h_1794025000003_cs2235f_p",
+    coursecode: "24CS2235F",
+    coursedesc: "COMPILER DESIGN",
+    section: "24CS2235F",
+    ltps: "P",
+    status: "present",
+    date: "2026-11-07",
+    note: "Conducted: 29, Attended: 29",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "h_1794025000004_cs3105_l",
+    coursecode: "24CS3105",
+    coursedesc: "INFORMATION ASSURANCE AND SECURITY",
+    section: "24CS3105",
+    ltps: "L",
+    status: "present",
+    date: "2026-11-07",
+    note: "Conducted: 72, Attended: 65",
+    created_at: new Date().toISOString(),
+  },
   {
     id: "h_1793949900000_ci3201",
     coursecode: "24CI3201",
@@ -702,6 +757,10 @@ export async function checkAndNotifyAttendanceChanges(
           continue;
         }
 
+        // Mark sent in cloud lock immediately to guarantee single delivery
+        await markAlertAsSent(presentAlertKey);
+        await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
+
         // Attendance marked PRESENT
         const entry = {
           id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -716,8 +775,6 @@ export async function checkAndNotifyAttendanceChanges(
         newHistoryEntries.push(entry);
         changes.push(`${row.coursecode} · ${row.section} (PRESENT)`);
         await sendTelegram(formatPresentNotification(row));
-        await markAlertAsSent(presentAlertKey);
-        await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
       } else if (row.total_conducted > prev.total_conducted) {
         // Deduplicate absent alert per specific total_conducted count
         const absentAlertKey = `absent_${row.coursecode}_${row.ltps}_${row.total_conducted}`;
@@ -725,6 +782,10 @@ export async function checkAndNotifyAttendanceChanges(
         if (alreadyNotified) {
           continue;
         }
+
+        // Mark sent in cloud lock immediately to guarantee single delivery
+        await markAlertAsSent(absentAlertKey);
+        await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
 
         // Class conducted, student marked ABSENT
         const entry = {
@@ -742,8 +803,6 @@ export async function checkAndNotifyAttendanceChanges(
         await sendTelegram(
           `❌ ${row.coursecode} · ${row.section || row.coursecode}\nMarked ABSENT\nAttendance: ${row.total_attended}/${row.total_conducted}\n\n${timeStr}`,
         );
-        await markAlertAsSent(absentAlertKey);
-        await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
       }
     }
   }
