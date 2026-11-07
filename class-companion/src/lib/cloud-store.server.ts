@@ -2,6 +2,7 @@
  * Ultra-reliable cloud persistent state store backed directly by the Telegram Bot API.
  * Uses Telegram's getMyDescription / setMyDescription for 100% uptime, zero 503 errors,
  * and guaranteed persistence across all Vercel serverless containers.
+ * Total state length is kept strictly under ~250 characters (limit is 512).
  */
 
 const TELEGRAM_BOT_TOKEN =
@@ -9,10 +10,26 @@ const TELEGRAM_BOT_TOKEN =
 
 export type BotCloudState = {
   d: string; // Current date (YYYY-MM-DD)
-  a: string[]; // Timetable alerts sent today (e.g. ["10m_P1", "now_P1"])
-  p: string[]; // Present alerts already notified (e.g. ["present_24CS2235F_L_50"])
-  c: Record<string, number>; // Latest attended counts by short key
+  a: string[]; // Timetable alerts sent today (e.g. ["10m_P3", "now_P3"])
+  c: Record<string, number>; // Latest attended counts by short key (e.g. { "CS2235F_L": 52 })
 };
+
+// Map full course code to short 3-6 char key for compact storage
+export function courseToShortKey(coursecode: string, ltps: string): string {
+  const base = coursecode.replace(/^24/, "").replace(/[^a-zA-Z0-9]/g, "");
+  const type = (ltps || "L").toUpperCase().slice(0, 1);
+  return `${base}_${type}`;
+}
+
+// Normalize alert key to compact 6-8 char identifier to conserve storage space
+export function normalizeAlertKey(k: string): string {
+  if (k.startsWith("10m_") || k.startsWith("now_")) {
+    const m = k.match(/(10m|now)_.*?(P\d+|LUNCH)/);
+    if (m) return `${m[1]}_${m[2]}`;
+  }
+  if (k.startsWith("weekly")) return "weekly";
+  return k.slice(0, 12);
+}
 
 // Fast in-memory cache for warm container instances
 let memoryState: BotCloudState | null = null;
@@ -42,9 +59,10 @@ export async function getCloudState(): Promise<BotCloudState> {
           parsed.d = istNowDate;
           parsed.a = [];
         }
-        if (!Array.isArray(parsed.p)) parsed.p = [];
         if (!Array.isArray(parsed.a)) parsed.a = [];
         if (!parsed.c || typeof parsed.c !== "object") parsed.c = {};
+        // Strip out legacy 'p' array if present to reclaim bytes
+        if ("p" in (parsed as any)) delete (parsed as any).p;
         memoryState = parsed;
         memoryStateTime = Date.now();
         return parsed;
@@ -55,25 +73,20 @@ export async function getCloudState(): Promise<BotCloudState> {
   const defaultState: BotCloudState = {
     d: istNowDate,
     a: [],
-    p: [
-      "present_24CS2235F_L_50",
-      "present_24CI3201_L_59",
-      "present_24CS3207_L_59",
-      "present_24CS2235F_P_29",
-      "present_24CS3105_L_65",
-      "present_24DEA3101_L_51",
-      "present_24SDCS03_L_41",
-      "present_24SDCS03_S_46",
-    ],
     c: {
-      CI3201_L: 59,
+      CI3201_L: 61,
+      CI3201_P: 22,
       CS3207_L: 59,
-      CS2235F_L: 50,
+      CS3207_P: 18,
+      CS2235F_L: 52,
       CS2235F_P: 29,
       CS3105_L: 65,
+      CS3105_T: 35,
       DEA3101_L: 51,
+      DEA3101_P: 38,
       SDCS03_L: 41,
       SDCS03_S: 46,
+      CC3014_S: 38,
     },
   };
   memoryState = defaultState;
@@ -86,9 +99,9 @@ export async function saveCloudState(state: BotCloudState): Promise<boolean> {
   memoryStateTime = Date.now();
 
   try {
-    // Keep arrays bounded to stay comfortably within 512 characters
-    state.a = (state.a || []).slice(-15);
-    state.p = (state.p || []).slice(-25);
+    // Keep timetable alerts bounded to last 16 to stay well under 512 chars
+    state.a = (state.a || []).slice(-16);
+    if ("p" in (state as any)) delete (state as any).p;
     const jsonStr = JSON.stringify(state);
 
     const ctrl = new AbortController();
@@ -106,53 +119,46 @@ export async function saveCloudState(state: BotCloudState): Promise<boolean> {
   }
 }
 
-/** Check if an alert (e.g. 10m reminder or present notification) has already been sent */
-export async function isAlertAlreadySent(alertKey: string): Promise<boolean> {
+/** Check if a timetable alert has already been sent today */
+export async function isTimetableAlertSent(alertKey: string): Promise<boolean> {
   const state = await getCloudState();
-  return state.a.includes(alertKey) || state.p.includes(alertKey);
+  const key = normalizeAlertKey(alertKey);
+  return state.a.includes(key);
 }
 
-/** Mark an alert as sent in the cloud */
-export async function markAlertAsSent(alertKey: string): Promise<void> {
+/** Mark a timetable alert as sent in the cloud */
+export async function markTimetableAlertSent(alertKey: string): Promise<void> {
   const state = await getCloudState();
-  if (alertKey.startsWith("present_") || alertKey.startsWith("absent_")) {
-    if (!state.p.includes(alertKey)) {
-      state.p.push(alertKey);
-      await saveCloudState(state);
-    }
-  } else {
-    if (!state.a.includes(alertKey)) {
-      state.a.push(alertKey);
-      await saveCloudState(state);
-    }
+  const key = normalizeAlertKey(alertKey);
+  if (!state.a.includes(key)) {
+    state.a.push(key);
+    await saveCloudState(state);
   }
 }
 
-/** Get persistent attendance count for a course */
-export async function getStoredCourseAttendance(
+// Aliases for compatibility across API routes
+export const isAlertAlreadySent = isTimetableAlertSent;
+export const markAlertAsSent = markTimetableAlertSent;
+
+/** Get the highest attended count recorded for this course */
+export async function getStoredAttendedCount(
   coursecode: string,
   ltps: string
-): Promise<{ attended: number; conducted: number } | null> {
+): Promise<number | null> {
   const state = await getCloudState();
-  const shortCode = coursecode.replace(/^24/, "");
-  const k = `${shortCode}_${ltps}`;
+  const k = courseToShortKey(coursecode, ltps);
   const attended = state.c[k];
-  if (typeof attended === "number") {
-    return { attended, conducted: 0 };
-  }
-  return null;
+  return typeof attended === "number" ? attended : null;
 }
 
-/** Store persistent attendance count for a course */
-export async function saveStoredCourseAttendance(
+/** Record the new attended count for this course */
+export async function saveStoredAttendedCount(
   coursecode: string,
   ltps: string,
-  attended: number,
-  conducted: number
+  attended: number
 ): Promise<void> {
   const state = await getCloudState();
-  const shortCode = coursecode.replace(/^24/, "");
-  const k = `${shortCode}_${ltps}`;
+  const k = courseToShortKey(coursecode, ltps);
   state.c[k] = Math.max(state.c[k] || 0, attended);
   await saveCloudState(state);
 }

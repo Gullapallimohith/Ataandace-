@@ -119,7 +119,7 @@ export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
   { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "P", section: "24CI3201", total_conducted: 31, total_attended: 22, updated_at: new Date().toISOString() },
   { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "L", section: "24CS3207", total_conducted: 71, total_attended: 59, updated_at: new Date().toISOString() },
   { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "P", section: "24CS3207", total_conducted: 24, total_attended: 18, updated_at: new Date().toISOString() },
-  { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "L", section: "24CS2235F", total_conducted: 58, total_attended: 50, updated_at: new Date().toISOString() },
+  { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "L", section: "24CS2235F", total_conducted: 60, total_attended: 52, updated_at: new Date().toISOString() },
   { coursecode: "24CS2235F", coursedesc: "COMPILER DESIGN", ltps: "P", section: "24CS2235F", total_conducted: 29, total_attended: 29, updated_at: new Date().toISOString() },
   { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "L", section: "24CS3105", total_conducted: 72, total_attended: 65, updated_at: new Date().toISOString() },
   { coursecode: "24CS3105", coursedesc: "INFORMATION ASSURANCE AND SECURITY", ltps: "T", section: "24CS3105", total_conducted: 38, total_attended: 35, updated_at: new Date().toISOString() },
@@ -139,7 +139,7 @@ export const DEFAULT_HISTORY = [
     ltps: "L",
     status: "present",
     date: "2026-11-07",
-    note: "Conducted: 58, Attended: 50",
+    note: "Conducted: 60, Attended: 52",
     created_at: new Date().toISOString(),
   },
   {
@@ -719,20 +719,17 @@ export async function checkAndNotifyAttendanceChanges(
   );
 
   const {
-    isAlertAlreadySent,
-    markAlertAsSent,
-    getStoredCourseAttendance,
-    saveStoredCourseAttendance,
+    getStoredAttendedCount,
+    saveStoredAttendedCount,
   } = await import("@/lib/cloud-store.server");
 
   // Reconcile with cloud persistent storage to avoid false jumps on fresh containers
   for (const row of rows) {
-    const cloudAtt = await getStoredCourseAttendance(row.coursecode, row.ltps);
-    if (cloudAtt) {
+    const cloudAttended = await getStoredAttendedCount(row.coursecode, row.ltps);
+    if (typeof cloudAttended === "number") {
       const existing = previous.get(`${row.coursecode}|${row.section}|${row.ltps}`);
       if (existing) {
-        existing.total_attended = Math.max(existing.total_attended, cloudAtt.attended);
-        existing.total_conducted = Math.max(existing.total_conducted, cloudAtt.conducted);
+        existing.total_attended = Math.max(existing.total_attended, cloudAttended);
       }
     }
   }
@@ -750,16 +747,13 @@ export async function checkAndNotifyAttendanceChanges(
     const prev = previous.get(`${row.coursecode}|${row.section}|${row.ltps}`);
     if (prev) {
       if (row.total_attended > prev.total_attended) {
-        // Deduplicate present alert per specific total_attended count
-        const presentAlertKey = `present_${row.coursecode}_${row.ltps}_${row.total_attended}`;
-        const alreadyNotified = await isAlertAlreadySent(presentAlertKey);
-        if (alreadyNotified) {
-          continue;
+        const storedCount = await getStoredAttendedCount(row.coursecode, row.ltps);
+        if (storedCount !== null && row.total_attended <= storedCount) {
+          continue; // Already notified for this attendance mark
         }
 
         // Mark sent in cloud lock immediately to guarantee single delivery
-        await markAlertAsSent(presentAlertKey);
-        await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
+        await saveStoredAttendedCount(row.coursecode, row.ltps, row.total_attended);
 
         // Attendance marked PRESENT
         const entry = {
@@ -775,41 +769,13 @@ export async function checkAndNotifyAttendanceChanges(
         newHistoryEntries.push(entry);
         changes.push(`${row.coursecode} · ${row.section} (PRESENT)`);
         await sendTelegram(formatPresentNotification(row));
-      } else if (row.total_conducted > prev.total_conducted) {
-        // Deduplicate absent alert per specific total_conducted count
-        const absentAlertKey = `absent_${row.coursecode}_${row.ltps}_${row.total_conducted}`;
-        const alreadyNotified = await isAlertAlreadySent(absentAlertKey);
-        if (alreadyNotified) {
-          continue;
-        }
-
-        // Mark sent in cloud lock immediately to guarantee single delivery
-        await markAlertAsSent(absentAlertKey);
-        await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
-
-        // Class conducted, student marked ABSENT
-        const entry = {
-          id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          coursecode: row.coursecode,
-          coursedesc: row.coursedesc,
-          section: row.section,
-          status: "absent",
-          date: today,
-          note: `Conducted: ${row.total_conducted}, Attended: ${row.total_attended}`,
-          created_at: new Date().toISOString(),
-        };
-        newHistoryEntries.push(entry);
-        changes.push(`${row.coursecode} · ${row.section} (ABSENT)`);
-        await sendTelegram(
-          `❌ ${row.coursecode} · ${row.section || row.coursecode}\nMarked ABSENT\nAttendance: ${row.total_attended}/${row.total_conducted}\n\n${timeStr}`,
-        );
       }
     }
   }
 
   // Always keep cloud persistent storage in sync with the latest rows
   for (const row of rows) {
-    await saveStoredCourseAttendance(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
+    await saveStoredAttendedCount(row.coursecode, row.ltps, row.total_attended);
   }
 
   if (newHistoryEntries.length > 0) {

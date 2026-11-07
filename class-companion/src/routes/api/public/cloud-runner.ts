@@ -43,7 +43,7 @@ const runnerHandler = async () => {
 
   const db = isSupabaseConfigured() ? admin() : null;
   const syncActive = await isSyncEnabled(db);
-  const { isAlertAlreadySent, markAlertAsSent } = await import("@/lib/cloud-store.server");
+  const { isTimetableAlertSent, markTimetableAlertSent } = await import("@/lib/cloud-store.server");
 
   const { day, minutes, timeString } = istNow();
   const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
@@ -77,10 +77,10 @@ const runnerHandler = async () => {
 
         // 10-Minute Reminder Window
         if (minutes >= period.start - 10 && minutes < period.start) {
-          const sent = sentAlerts.has(alert10mKey) || (await isAlertAlreadySent(alert10mKey));
+          const sent = sentAlerts.has(alert10mKey) || (await isTimetableAlertSent(alert10mKey));
           if (!sent) {
             recordSentAlert(alert10mKey);
-            await markAlertAsSent(alert10mKey);
+            await markTimetableAlertSent(alert10mKey);
             const venueInfo = slot.venue ? ` (${slot.venue})` : "";
             await sendTelegram(
               `📚 Period ${period.label.replace("P", "")} starting in 10 mins: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`
@@ -92,10 +92,10 @@ const runnerHandler = async () => {
 
         // At Start Window (first 5 minutes of period)
         if (minutes >= period.start && minutes <= period.start + 5) {
-          const sent = sentAlerts.has(alertNowKey) || (await isAlertAlreadySent(alertNowKey));
+          const sent = sentAlerts.has(alertNowKey) || (await isTimetableAlertSent(alertNowKey));
           if (!sent) {
             recordSentAlert(alertNowKey);
-            await markAlertAsSent(alertNowKey);
+            await markTimetableAlertSent(alertNowKey);
             const venueInfo = slot.venue ? ` (${slot.venue})` : "";
             await sendTelegram(
               `📚 Period ${period.label.replace("P", "")} starting now: ${slot.coursecode} · ${slot.section} · Room ${slot.room}${venueInfo}`
@@ -113,10 +113,10 @@ const runnerHandler = async () => {
   // 2. Sunday 9:00 AM IST Weekly Report Check
   if (day === "Sun" && minutes >= 9 * 60 && minutes < 9 * 60 + 10) {
     const weeklyKey = `weekly_report_${todayDate}`;
-    const sent = sentAlerts.has(weeklyKey) || (await isAlertAlreadySent(weeklyKey));
+    const sent = sentAlerts.has(weeklyKey) || (await isTimetableAlertSent(weeklyKey));
     if (!sent) {
       recordSentAlert(weeklyKey);
-      await markAlertAsSent(weeklyKey);
+      await markTimetableAlertSent(weeklyKey);
       try {
         await sendWeeklyAttendanceReport();
         results.weeklyReportSent = true;
