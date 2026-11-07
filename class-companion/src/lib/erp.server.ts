@@ -115,7 +115,7 @@ export const DEFAULT_ERP_SESSION: ErpSession = {
 let localMemorySession: ErpSession = readStoredSession() ?? DEFAULT_ERP_SESSION;
 
 export const DEFAULT_COURSES: (AttendanceRow & { updated_at: string })[] = [
-  { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "L", section: "24CI3201", total_conducted: 66, total_attended: 59, updated_at: new Date().toISOString() },
+  { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "L", section: "24CI3201", total_conducted: 68, total_attended: 61, updated_at: new Date().toISOString() },
   { coursecode: "24CI3201", coursedesc: "ADAPTIVE SOFTWARE ENGINEERING", ltps: "P", section: "24CI3201", total_conducted: 31, total_attended: 22, updated_at: new Date().toISOString() },
   { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "L", section: "24CS3207", total_conducted: 71, total_attended: 59, updated_at: new Date().toISOString() },
   { coursecode: "24CS3207", coursedesc: "QUANTUM COMPUTING", ltps: "P", section: "24CS3207", total_conducted: 24, total_attended: 18, updated_at: new Date().toISOString() },
@@ -150,7 +150,7 @@ export const DEFAULT_HISTORY = [
     ltps: "L",
     status: "present",
     date: "2026-11-07",
-    note: "Conducted: 66, Attended: 59",
+    note: "Conducted: 68, Attended: 61",
     created_at: new Date().toISOString(),
   },
   {
