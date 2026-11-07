@@ -175,3 +175,48 @@ export async function getTimetable(
   return TIMETABLE;
 }
 
+/**
+ * Find scheduled period(s) for a course on today's timetable.
+ */
+export function findPeriodsForCourse(
+  coursecode: string,
+  ltps: string = "L",
+  timetable: Record<Day, Record<string, ClassSlot | null>> = TIMETABLE,
+  now: Date = new Date(),
+): { currentPeriod: string | null; allPeriodsToday: string[] } {
+  const { day, minutes } = istNow(now);
+  if (!day) return { currentPeriod: null, allPeriodsToday: [] };
+
+  const daySchedule = timetable[day] || {};
+  const cleanCode = coursecode.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+  const matchingPeriods: { period: Period; slot: ClassSlot }[] = [];
+
+  for (const period of PERIODS) {
+    if (period.isBreak) continue;
+    const slot = daySchedule[period.key];
+    if (!slot) continue;
+
+    const slotCode = slot.coursecode.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (slotCode.includes(cleanCode) || cleanCode.includes(slotCode)) {
+      matchingPeriods.push({ period, slot });
+    }
+  }
+
+  // Find period that just finished or is currently running (within 30 mins window)
+  let currentPeriod: string | null = null;
+  for (const { period } of matchingPeriods) {
+    if (minutes >= period.start - 10 && minutes <= period.end + 35) {
+      currentPeriod = `Period ${period.label.replace("P", "")} (${formatPeriodTime(period)})`;
+      break;
+    }
+  }
+
+  const allPeriodsToday = matchingPeriods.map(
+    (m) => `Period ${m.period.label.replace("P", "")}`,
+  );
+
+  return { currentPeriod, allPeriodsToday };
+}
+
+

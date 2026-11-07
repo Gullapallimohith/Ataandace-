@@ -110,9 +110,13 @@ const runnerHandler = async () => {
     }
   }
 
-  // 2. Sunday 9:00 AM IST Weekly Report Check
-  if (day === "Sun" && minutes >= 9 * 60 && minutes < 9 * 60 + 10) {
-    const weeklyKey = `weekly_report_${todayDate}`;
+  // 2. Weekly Attendance Report Check (Sunday 9:00 AM IST or Saturday 5:00 PM IST at end of academic week)
+  const isWeeklyReportWindow =
+    (day === "Sun" && minutes >= 9 * 60 && minutes < 9 * 60 + 15) ||
+    (day === "Sat" && minutes >= 17 * 60 && minutes < 17 * 60 + 15);
+
+  if (isWeeklyReportWindow) {
+    const weeklyKey = `weekly_${todayDate}`;
     const sent = sentAlerts.has(weeklyKey) || (await isTimetableAlertSent(weeklyKey));
     if (!sent) {
       recordSentAlert(weeklyKey);

@@ -677,6 +677,7 @@ export async function sendTelegramPhoto(photo: ArrayBuffer, caption: string): Pr
  */
 export function formatPresentNotification(
   row: { coursecode: string; section?: string; coursedesc?: string; total_attended: number; total_conducted: number },
+  periodLabel?: string | null,
   timestamp?: Date,
 ): string {
   const d = timestamp ?? new Date();
@@ -684,11 +685,34 @@ export function formatPresentNotification(
   const hh = String(ist.getUTCHours()).padStart(2, "0");
   const mm = String(ist.getUTCMinutes()).padStart(2, "0");
   const timeStr = `${hh}:${mm}`;
+  const pct = row.total_conducted > 0 ? ((row.total_attended / row.total_conducted) * 100).toFixed(1) : "0.0";
+  const periodText = periodLabel ? ` · ${periodLabel}` : "";
 
   return (
     `✅ ${row.coursecode} · ${row.section || row.coursecode}\n` +
-    `Marked PRESENT\n` +
-    `Attendance: ${row.total_attended}/${row.total_conducted}\n\n` +
+    `Marked PRESENT${periodText}\n` +
+    `Attendance: ${row.total_attended}/${row.total_conducted} (${pct}%)\n\n` +
+    `${timeStr}`
+  );
+}
+
+export function formatAbsentNotification(
+  row: { coursecode: string; section?: string; coursedesc?: string; total_attended: number; total_conducted: number },
+  periodLabel?: string | null,
+  timestamp?: Date,
+): string {
+  const d = timestamp ?? new Date();
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  const hh = String(ist.getUTCHours()).padStart(2, "0");
+  const mm = String(ist.getUTCMinutes()).padStart(2, "0");
+  const timeStr = `${hh}:${mm}`;
+  const pct = row.total_conducted > 0 ? ((row.total_attended / row.total_conducted) * 100).toFixed(1) : "0.0";
+  const periodText = periodLabel ? ` · ${periodLabel}` : "";
+
+  return (
+    `❌ ${row.coursecode} · ${row.section || row.coursecode}\n` +
+    `Marked ABSENT${periodText}\n` +
+    `Attendance: ${row.total_attended}/${row.total_conducted} (${pct}%)\n\n` +
     `${timeStr}`
   );
 }
@@ -719,26 +743,26 @@ export async function checkAndNotifyAttendanceChanges(
   );
 
   const {
-    getStoredAttendedCount,
-    saveStoredAttendedCount,
+    getStoredCourseStats,
+    saveStoredCourseStats,
   } = await import("@/lib/cloud-store.server");
+  const { findPeriodsForCourse, getTimetable } = await import("@/lib/timetable");
+  const timetable = await getTimetable(db);
 
-  // Reconcile with cloud persistent storage to avoid false jumps on fresh containers
+  // Reconcile with cloud persistent storage to ensure container memory is 100% in sync
   for (const row of rows) {
-    const cloudAttended = await getStoredAttendedCount(row.coursecode, row.ltps);
-    if (typeof cloudAttended === "number") {
+    const cloudStats = await getStoredCourseStats(row.coursecode, row.ltps);
+    if (cloudStats) {
       const existing = previous.get(`${row.coursecode}|${row.section}|${row.ltps}`);
       if (existing) {
-        existing.total_attended = Math.max(existing.total_attended, cloudAttended);
+        existing.total_attended = Math.max(existing.total_attended, cloudStats.attended);
+        existing.total_conducted = Math.max(existing.total_conducted, cloudStats.conducted);
       }
     }
   }
 
   const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
   const today = istDate.toISOString().slice(0, 10);
-  const hh = String(istDate.getUTCHours()).padStart(2, "0");
-  const mm = String(istDate.getUTCMinutes()).padStart(2, "0");
-  const timeStr = `${hh}:${mm}`;
 
   const changes: string[] = [];
   const newHistoryEntries: any[] = [];
@@ -746,15 +770,27 @@ export async function checkAndNotifyAttendanceChanges(
   for (const row of rows) {
     const prev = previous.get(`${row.coursecode}|${row.section}|${row.ltps}`);
     if (prev) {
-      if (row.total_attended > prev.total_attended) {
-        const storedCount = await getStoredAttendedCount(row.coursecode, row.ltps);
-        if (storedCount !== null && row.total_attended <= storedCount) {
-          continue; // Already notified for this attendance mark
-        }
+      const deltaConducted = row.total_conducted - prev.total_conducted;
+      const deltaAttended = row.total_attended - prev.total_attended;
 
-        // Mark sent in cloud lock immediately to guarantee single delivery
-        await saveStoredAttendedCount(row.coursecode, row.ltps, row.total_attended);
+      if (deltaConducted <= 0 && deltaAttended <= 0) {
+        continue;
+      }
 
+      // Check against cloud stats to prevent duplicate alerts from multiple serverless containers
+      const cloudStats = await getStoredCourseStats(row.coursecode, row.ltps);
+      if (cloudStats && row.total_attended <= cloudStats.attended && row.total_conducted <= cloudStats.conducted) {
+        continue; // Already processed and notified in cloud state
+      }
+
+      // Save to cloud store immediately before sending to prevent race conditions
+      await saveStoredCourseStats(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
+
+      // Determine period label from today's timetable
+      const { currentPeriod, allPeriodsToday } = findPeriodsForCourse(row.coursecode, row.ltps, timetable);
+      const periodLabel = currentPeriod || (allPeriodsToday.length > 0 ? allPeriodsToday.join(", ") : null);
+
+      if (deltaAttended > 0) {
         // Attendance marked PRESENT
         const entry = {
           id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -768,14 +804,46 @@ export async function checkAndNotifyAttendanceChanges(
         };
         newHistoryEntries.push(entry);
         changes.push(`${row.coursecode} · ${row.section} (PRESENT)`);
-        await sendTelegram(formatPresentNotification(row));
+        await sendTelegram(formatPresentNotification(row, periodLabel));
+
+        // If in a multi-hour block, some were attended and some were missed
+        if (deltaConducted > deltaAttended) {
+          const absentEntry = {
+            id: `h_${Date.now() + 1}_${Math.random().toString(36).substring(2, 7)}`,
+            coursecode: row.coursecode,
+            coursedesc: row.coursedesc,
+            section: row.section,
+            status: "absent",
+            date: today,
+            note: `Conducted: ${row.total_conducted}, Attended: ${row.total_attended}`,
+            created_at: new Date().toISOString(),
+          };
+          newHistoryEntries.push(absentEntry);
+          changes.push(`${row.coursecode} · ${row.section} (ABSENT)`);
+          await sendTelegram(formatAbsentNotification(row, periodLabel));
+        }
+      } else if (deltaConducted > 0 && deltaAttended === 0) {
+        // Class conducted, student marked ABSENT
+        const entry = {
+          id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          coursecode: row.coursecode,
+          coursedesc: row.coursedesc,
+          section: row.section,
+          status: "absent",
+          date: today,
+          note: `Conducted: ${row.total_conducted}, Attended: ${row.total_attended}`,
+          created_at: new Date().toISOString(),
+        };
+        newHistoryEntries.push(entry);
+        changes.push(`${row.coursecode} · ${row.section} (ABSENT)`);
+        await sendTelegram(formatAbsentNotification(row, periodLabel));
       }
     }
   }
 
   // Always keep cloud persistent storage in sync with the latest rows
   for (const row of rows) {
-    await saveStoredAttendedCount(row.coursecode, row.ltps, row.total_attended);
+    await saveStoredCourseStats(row.coursecode, row.ltps, row.total_attended, row.total_conducted);
   }
 
   if (newHistoryEntries.length > 0) {
